@@ -107,7 +107,7 @@ export default async function DashboardPage() {
 function SidebarItem({ label, active = false }: { label: string; active?: boolean }) {
   return (
     <button
-      className={`flex w-full items-center rounded-md px-2 py-1.5 text-[13px] transition-colors ${
+      className={`flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 text-[13px] transition-colors ${
         active
           ? "bg-white/[0.07] text-white/80"
           : "text-white/35 hover:bg-white/[0.04] hover:text-white/60"
