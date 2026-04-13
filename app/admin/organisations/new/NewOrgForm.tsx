@@ -19,9 +19,14 @@ export function NewOrgForm() {
     createOrganisation,
     null
   );
+  const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [description, setDescription] = useState("");
+  const [allowedDomain, setAllowedDomain] = useState("");
+  const [email, setEmail] = useState("");
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setName(e.target.value);
     setSlug(toSlug(e.target.value));
   }
 
@@ -103,6 +108,7 @@ export function NewOrgForm() {
           <input
             name="name"
             required
+            value={name}
             onChange={handleNameChange}
             placeholder="Your Organisation"
             className={inputClass}
@@ -125,6 +131,8 @@ export function NewOrgForm() {
         <textarea
           name="description"
           rows={2}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           placeholder="Optional description of the organisation"
           className={`${inputClass} resize-none`}
         />
@@ -138,6 +146,8 @@ export function NewOrgForm() {
           </span>
           <input
             name="allowed_domain"
+            value={allowedDomain}
+            onChange={(e) => setAllowedDomain(e.target.value)}
             placeholder="company.com"
             className={`${inputClass} pl-7`}
           />
@@ -152,6 +162,8 @@ export function NewOrgForm() {
           name="email"
           type="email"
           required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           placeholder="name@company.com"
           className={inputClass}
         />
