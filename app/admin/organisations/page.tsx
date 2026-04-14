@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/app/components/PageHeader";
 import {
   Table,
   TableBody,
@@ -77,33 +79,19 @@ export default async function OrganisationsPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col px-8 py-8">
-      {/* Page header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-[15px] font-semibold text-white">
-            All Organisations
-          </h1>
-          <p className="mt-1 text-[13px] text-white/60">
-            {orgs
-              ? `${orgs.length} organisation${orgs.length !== 1 ? "s" : ""}`
-              : "Manage all organisations."}
-          </p>
-        </div>
-        <Link
-          href="/admin/organisations/new"
-          className="flex items-center gap-1.5 rounded-md bg-indigo-500/10 px-3 py-1.5 text-[13px] font-medium text-indigo-400 transition-colors hover:bg-indigo-500/15 hover:text-indigo-300"
-        >
-          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden>
-            <path
-              d="M5.5 1.5v8M1.5 5.5h8"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-          Create Organisation
-        </Link>
+    <>
+      <PageHeader title="All Organisations" />
+      <div className="flex flex-1 flex-col px-8 py-8">
+      {/* Subheader row */}
+      <div className="mb-8 flex items-center justify-between">
+        <p className="text-[13px] text-muted-foreground">
+          {orgs
+            ? `${orgs.length} organisation${orgs.length !== 1 ? "s" : ""}`
+            : "Manage all organisations."}
+        </p>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/admin/organisations/new">Create Organisation</Link>
+        </Button>
       </div>
 
       {/* Error state */}
@@ -251,5 +239,6 @@ export default async function OrganisationsPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

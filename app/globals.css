@@ -110,7 +110,7 @@ body {
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.165 0 0);
+  --sidebar: oklch(19.574% 0.00002 271.152);
   --sidebar-foreground: oklch(0.93 0 0);
   --sidebar-primary: oklch(0.585 0.233 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -126,6 +126,7 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    background-color: var(--sidebar);
   }
   html {
     @apply font-sans;
