@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { createOrganisation, type CreateOrgState } from "@/app/actions/organisations";
 
 function toSlug(name: string) {
@@ -171,13 +172,9 @@ export function NewOrgForm() {
 
       {/* Submit */}
       <div className="pt-1">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-indigo-500/15 px-4 py-2 text-[13px] font-medium text-indigo-400 transition-colors hover:bg-indigo-500/20 hover:text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
-        >
+        <Button type="submit" variant="outline" size="sm" disabled={pending}>
           {pending ? "Creating…" : "Create Organisation"}
-        </button>
+        </Button>
       </div>
     </form>
   );
