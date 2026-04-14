@@ -65,7 +65,7 @@ export function NewOrgForm() {
             </code>
             <button
               onClick={() => navigator.clipboard.writeText(inviteUrl)}
-              className="shrink-0 rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[12px] text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white/80"
+              className="shrink-0 cursor-pointer rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[12px] text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white/80"
             >
               Copy
             </button>
@@ -78,13 +78,13 @@ export function NewOrgForm() {
         <div className="flex gap-3">
           <Link
             href="/admin/organisations"
-            className="rounded-md border border-white/[0.08] px-3 py-2 text-[13px] text-white/60 transition-colors hover:bg-white/[0.04] hover:text-white/80"
+            className="cursor-pointer rounded-md border border-white/[0.08] px-3 py-2 text-[13px] text-white/60 transition-colors hover:bg-white/[0.04] hover:text-white/80"
           >
             View all organisations
           </Link>
           <button
             onClick={() => window.location.reload()}
-            className="rounded-md bg-indigo-500/10 px-3 py-2 text-[13px] font-medium text-indigo-400 transition-colors hover:bg-indigo-500/15 hover:text-indigo-300"
+            className="cursor-pointer rounded-md bg-indigo-500/10 px-3 py-2 text-[13px] font-medium text-indigo-400 transition-colors hover:bg-indigo-500/15 hover:text-indigo-300"
           >
             Create another
           </button>

@@ -46,7 +46,7 @@ export function OrgActionsMenu({ orgId, orgName }: Props) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex h-7 w-7 items-center justify-center rounded-md text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white/70"
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white/70"
             aria-label="Organisation actions"
           >
             <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor" aria-hidden>
