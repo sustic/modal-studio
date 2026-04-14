@@ -1,22 +1,47 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { OrgActionsMenu } from "./_components/OrgActionsMenu";
 
-type Org = {
+type OrgRow = {
   id: string;
   name: string;
   slug: string;
-  description: string | null;
   allowed_domain: string | null;
   created_at: string;
   organisation_members: { count: number }[];
+  projects: { count: number }[];
+  modal_maps: { count: number }[];
+  components: { count: number }[];
 };
+
+function count(arr: { count: number }[]): number {
+  return arr?.[0]?.count ?? 0;
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export default async function OrganisationsPage() {
   const { data: orgs, error } = await supabaseAdmin
     .from("organisations")
-    .select("*, organisation_members(count)")
+    .select(
+      "id, name, slug, allowed_domain, created_at, organisation_members(count), projects(count), modal_maps(count), components(count)"
+    )
     .order("created_at", { ascending: false })
-    .returns<Org[]>();
+    .returns<OrgRow[]>();
 
   return (
     <div className="flex flex-1 flex-col px-8 py-8">
@@ -27,7 +52,9 @@ export default async function OrganisationsPage() {
             All Organisations
           </h1>
           <p className="mt-1 text-[13px] text-white/60">
-            {orgs ? `${orgs.length} organisation${orgs.length !== 1 ? "s" : ""}` : "Manage all organisations."}
+            {orgs
+              ? `${orgs.length} organisation${orgs.length !== 1 ? "s" : ""}`
+              : "Manage all organisations."}
           </p>
         </div>
         <Link
@@ -46,7 +73,7 @@ export default async function OrganisationsPage() {
         </Link>
       </div>
 
-      {/* Error state — migration probably not run yet */}
+      {/* Error state */}
       {error && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-[13px] text-red-400">
           Could not load organisations: {error.message}
@@ -84,49 +111,100 @@ export default async function OrganisationsPage() {
         </div>
       )}
 
-      {/* Org list */}
+      {/* Table */}
       {!error && orgs && orgs.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {orgs.map((org) => (
-            <OrgCard key={org.id} org={org} />
-          ))}
+        <div className="rounded-lg border border-white/[0.06] overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-white/[0.06] hover:bg-transparent">
+                <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium w-[220px]">
+                  Organisation
+                </TableHead>
+                <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium">
+                  Domain
+                </TableHead>
+                <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium text-right">
+                  Members
+                </TableHead>
+                <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium text-right">
+                  Projects
+                </TableHead>
+                <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium text-right">
+                  Modal Maps
+                </TableHead>
+                <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium text-right">
+                  Components
+                </TableHead>
+                <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium">
+                  Created
+                </TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orgs.map((org) => (
+                <TableRow
+                  key={org.id}
+                  className="border-white/[0.06] hover:bg-white/[0.02]"
+                >
+                  {/* Organisation */}
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[13px] font-medium text-white">
+                        {org.name}
+                      </span>
+                      <span className="font-mono text-[11px] text-white/35">
+                        {org.slug}
+                      </span>
+                    </div>
+                  </TableCell>
+
+                  {/* Domain */}
+                  <TableCell className="text-[13px] text-white/50">
+                    {org.allowed_domain ? (
+                      <span className="font-mono text-[12px]">
+                        @{org.allowed_domain}
+                      </span>
+                    ) : (
+                      <span className="text-white/25">—</span>
+                    )}
+                  </TableCell>
+
+                  {/* Members */}
+                  <TableCell className="text-right text-[13px] tabular-nums text-white/60">
+                    {count(org.organisation_members)}
+                  </TableCell>
+
+                  {/* Projects */}
+                  <TableCell className="text-right text-[13px] tabular-nums text-white/60">
+                    {count(org.projects)}
+                  </TableCell>
+
+                  {/* Modal Maps */}
+                  <TableCell className="text-right text-[13px] tabular-nums text-white/60">
+                    {count(org.modal_maps)}
+                  </TableCell>
+
+                  {/* Components */}
+                  <TableCell className="text-right text-[13px] tabular-nums text-white/60">
+                    {count(org.components)}
+                  </TableCell>
+
+                  {/* Created */}
+                  <TableCell className="text-[13px] text-white/40">
+                    {formatDate(org.created_at)}
+                  </TableCell>
+
+                  {/* Actions */}
+                  <TableCell className="text-right">
+                    <OrgActionsMenu orgId={org.id} orgName={org.name} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
-    </div>
-  );
-}
-
-function OrgCard({ org }: { org: Org }) {
-  const memberCount = org.organisation_members?.[0]?.count ?? 0;
-  const createdAt = new Date(org.created_at).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3.5 transition-colors hover:bg-white/[0.04]">
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] font-medium text-white">{org.name}</span>
-          <span className="rounded px-1.5 py-0.5 text-[11px] text-white/35 bg-white/[0.04] font-mono">
-            {org.slug}
-          </span>
-          {org.allowed_domain && (
-            <span className="rounded px-1.5 py-0.5 text-[11px] text-white/35 bg-white/[0.04]">
-              @{org.allowed_domain}
-            </span>
-          )}
-        </div>
-        {org.description && (
-          <p className="text-[12px] text-white/45">{org.description}</p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-4 text-[12px] text-white/35 shrink-0 ml-4">
-        <span>{memberCount} {memberCount === 1 ? "member" : "members"}</span>
-        <span>{createdAt}</span>
-      </div>
     </div>
   );
 }

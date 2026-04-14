@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
@@ -61,4 +62,21 @@ export async function createOrganisation(
   }
 
   return { success: true, orgName: name, token };
+}
+
+export async function deleteOrganisation(id: string): Promise<{ error?: string }> {
+  const { userId } = await auth();
+  if (!userId || userId !== process.env.NEXT_PUBLIC_SUPERADMIN_CLERK_ID) {
+    redirect("/sign-in");
+  }
+
+  const { error } = await supabaseAdmin
+    .from("organisations")
+    .delete()
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/organisations");
+  return {};
 }
