@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Folder, Users, Settings, Building2, CirclePlus } from "lucide-react";
+import { Folder, Users, Settings, Building2, CirclePlus, Plus } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +17,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { NavUser } from "./NavUser";
+import { getProjectsForOrg, type SidebarProject } from "@/app/actions/projects";
+
+// First path segments that are never an org slug
+const NON_ORG_SEGMENTS = new Set([
+  "admin", "dashboard", "sign-in", "sign-up",
+  "invite", "waiting", "sso-callback", "",
+]);
 
 function ModalStudioLogo() {
   return (
@@ -34,8 +41,7 @@ function ModalStudioLogo() {
   );
 }
 
-const navMain = [
-  { title: "Projects", url: "/dashboard", icon: Folder },
+const navWorkspace = [
   { title: "Members", url: "/members", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },
 ] as const;
@@ -65,6 +71,27 @@ export function AppSidebar({
 }: Props & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
 
+  // Derive org slug from the first path segment
+  const firstSegment = pathname.split("/")[1] ?? "";
+  const orgSlug = NON_ORG_SEGMENTS.has(firstSegment) ? null : firstSegment;
+
+  const [projects, setProjects] = React.useState<SidebarProject[]>([]);
+
+  React.useEffect(() => {
+    if (!orgSlug) {
+      setProjects([]);
+      return;
+    }
+    getProjectsForOrg(orgSlug).then(setProjects);
+  }, [orgSlug]);
+
+  // We fetched up to 6; if we got 6, there are more than 5
+  const hasMore = projects.length === 6;
+  const visibleProjects = projects.slice(0, 5);
+
+  // Derive the logo href: go to org projects if in org context, else root
+  const logoHref = orgSlug ? `/${orgSlug}/projects` : "/";
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -74,7 +101,7 @@ export function AppSidebar({
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <Link href="/dashboard">
+              <Link href={logoHref}>
                 <ModalStudioLogo />
                 <span className="text-base font-semibold">Modal Studio</span>
               </Link>
@@ -84,10 +111,72 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
+        {/* ── Projects (org context only) ── */}
+        {orgSlug && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Projects</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleProjects.map((project) => {
+                  const url = `/${orgSlug}/${project.slug}`;
+                  return (
+                    <SidebarMenuItem key={project.id}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={project.name}
+                        isActive={pathname === url || pathname.startsWith(`${url}/`)}
+                      >
+                        <Link href={url}>
+                          <Folder />
+                          <span>{project.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+
+                {hasMore && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip="View all projects"
+                      isActive={pathname === `/${orgSlug}/projects`}
+                    >
+                      <Link
+                        href={`/${orgSlug}/projects`}
+                        className="text-muted-foreground"
+                      >
+                        <span className="ml-0.5 text-[11px]">···</span>
+                        <span>View all</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+
+                {/* New Project */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip="New Project"
+                    isActive={pathname === `/${orgSlug}/projects/new`}
+                  >
+                    <Link href={`/${orgSlug}/projects/new`}>
+                      <Plus />
+                      <span>New Project</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ── Workspace ── */}
         <SidebarGroup>
-          <SidebarGroupContent className="flex flex-col gap-2">
+          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupContent>
             <SidebarMenu>
-              {navMain.map((item) => (
+              {navWorkspace.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -105,6 +194,7 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* ── Superadmin ── */}
         {isSuperadmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Superadmin</SidebarGroupLabel>
