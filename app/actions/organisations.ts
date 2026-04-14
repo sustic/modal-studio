@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { sendInvitationEmail } from "./invitations";
 
 export type CreateOrgState =
   | null
@@ -47,7 +48,7 @@ export async function createOrganisation(
 
   const token = randomUUID();
 
-  const { error: inviteError } = await supabaseAdmin
+  const { data: invitation, error: inviteError } = await supabaseAdmin
     .from("invitations")
     .insert({
       organisation_id: org.id,
@@ -55,10 +56,25 @@ export async function createOrganisation(
       role: "owner",
       invited_by: userId,
       token,
-    });
+    })
+    .select("id")
+    .single();
 
-  if (inviteError) {
-    return { success: false, error: inviteError.message };
+  if (inviteError || !invitation) {
+    return { success: false, error: inviteError?.message ?? "Failed to create invitation" };
+  }
+
+  // Send the invitation email (non-fatal — org is created even if email fails)
+  console.log("[createOrganisation] calling sendInvitationEmail for invitation:", invitation.id);
+  try {
+    const { error: emailError } = await sendInvitationEmail(invitation.id);
+    if (emailError) {
+      console.error("[createOrganisation] sendInvitationEmail returned error:", emailError);
+    } else {
+      console.log("[createOrganisation] sendInvitationEmail succeeded");
+    }
+  } catch (err) {
+    console.error("[createOrganisation] sendInvitationEmail threw:", err);
   }
 
   return { success: true, orgName: name, token };
