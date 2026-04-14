@@ -22,6 +22,8 @@ type OrgRow = {
   components: { count: number }[];
 };
 
+type ActivityRow = { organisation_id: string; updated_at: string };
+
 function count(arr: { count: number }[]): number {
   return arr?.[0]?.count ?? 0;
 }
@@ -35,13 +37,44 @@ function formatDate(iso: string) {
 }
 
 export default async function OrganisationsPage() {
-  const { data: orgs, error } = await supabaseAdmin
-    .from("organisations")
-    .select(
-      "id, name, slug, allowed_domain, created_at, organisation_members(count), projects(count), modal_maps(count), components(count)"
-    )
-    .order("created_at", { ascending: false })
-    .returns<OrgRow[]>();
+  // Run all queries in parallel. The three activity queries fetch only two
+  // columns (organisation_id, updated_at) so we can compute MAX per org in JS —
+  // PostgREST has no cross-table aggregate, and a DB view would need a migration.
+  const [orgsResult, projectsActivity, mapsActivity, componentsActivity] =
+    await Promise.all([
+      supabaseAdmin
+        .from("organisations")
+        .select(
+          "id, name, slug, allowed_domain, created_at, organisation_members(count), projects(count), modal_maps(count), components(count)"
+        )
+        .order("created_at", { ascending: false })
+        .returns<OrgRow[]>(),
+      supabaseAdmin
+        .from("projects")
+        .select("organisation_id, updated_at")
+        .returns<ActivityRow[]>(),
+      supabaseAdmin
+        .from("modal_maps")
+        .select("organisation_id, updated_at")
+        .returns<ActivityRow[]>(),
+      supabaseAdmin
+        .from("components")
+        .select("organisation_id, updated_at")
+        .returns<ActivityRow[]>(),
+    ]);
+
+  const { data: orgs, error } = orgsResult;
+
+  // Build a map of org_id → latest updated_at across all three tables.
+  const lastActiveMap = new Map<string, string>();
+  for (const { data } of [projectsActivity, mapsActivity, componentsActivity]) {
+    for (const row of data ?? []) {
+      const current = lastActiveMap.get(row.organisation_id);
+      if (!current || row.updated_at > current) {
+        lastActiveMap.set(row.organisation_id, row.updated_at);
+      }
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col px-8 py-8">
@@ -136,6 +169,9 @@ export default async function OrganisationsPage() {
                   Components
                 </TableHead>
                 <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium">
+                  Last Active
+                </TableHead>
+                <TableHead className="text-white/40 text-[11px] uppercase tracking-widest font-medium">
                   Created
                 </TableHead>
                 <TableHead className="w-10" />
@@ -188,6 +224,15 @@ export default async function OrganisationsPage() {
                   {/* Components */}
                   <TableCell className="text-right text-[13px] tabular-nums text-white/60">
                     {count(org.components)}
+                  </TableCell>
+
+                  {/* Last Active */}
+                  <TableCell className="text-[13px] text-white/40">
+                    {lastActiveMap.has(org.id) ? (
+                      formatDate(lastActiveMap.get(org.id)!)
+                    ) : (
+                      <span className="text-white/25">—</span>
+                    )}
                   </TableCell>
 
                   {/* Created */}
