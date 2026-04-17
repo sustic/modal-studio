@@ -3,7 +3,6 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { PageHeader } from "@/app/components/PageHeader";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -111,92 +110,66 @@ export default async function ProjectPage({ params }: Props) {
           <span className="text-muted-foreground/70">{project.name}</span>
         </div>
 
-        {/* Toolbar */}
-        <div className="mb-6 flex items-center justify-end">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={newModalMapHref}>New Modal Map</Link>
-          </Button>
-        </div>
-
-        {/* Empty state */}
-        {(!modalMaps || modalMaps.length === 0) && (
-          <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border py-24">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-                <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.2" />
-                <circle cx="9" cy="9" r="2" fill="currentColor" />
-                <path
-                  d="M9 4v1.5M9 12.5V14M4 9h1.5M12.5 9H14"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-            <p className="mt-3 text-[13px] font-medium text-foreground">
-              No modal maps yet
-            </p>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              Create your first modal map to start mapping frequencies.
-            </p>
-            <Button variant="outline" size="sm" className="mt-4" asChild>
-              <Link href={newModalMapHref}>New Modal Map</Link>
-            </Button>
-          </div>
-        )}
-
         {/* Modal map grid */}
-        {modalMaps && modalMaps.length > 0 && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {modalMaps.map((map) => (
-              <Link
-                key={map.id}
-                href={`/${orgSlug}/${projectSlug}/${map.slug ?? map.id}`}
-                className="group block"
-              >
-                <Card className="h-full transition-colors hover:bg-accent/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-[14px] font-semibold leading-snug">
-                      {map.name}
-                    </CardTitle>
-                  </CardHeader>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {(modalMaps ?? []).map((map) => (
+            <Link
+              key={map.id}
+              href={`/${orgSlug}/${projectSlug}/${map.slug ?? map.id}`}
+              className="group block"
+            >
+              <Card className="h-full transition-colors hover:bg-accent/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-[14px] font-semibold leading-snug">
+                    {map.name}
+                  </CardTitle>
+                </CardHeader>
 
-                  <CardContent className="pb-4">
-                    {map.description ? (
-                      <p className="line-clamp-2 text-[13px] text-muted-foreground">
-                        {map.description}
-                      </p>
-                    ) : (
-                      <p className="text-[13px] text-muted-foreground/40 italic">
-                        No description
-                      </p>
+                <CardContent className="pb-4">
+                  {map.description ? (
+                    <p className="line-clamp-2 text-[13px] text-muted-foreground">
+                      {map.description}
+                    </p>
+                  ) : (
+                    <p className="text-[13px] text-muted-foreground/40 italic">
+                      No description
+                    </p>
+                  )}
+
+                  <div className="mt-4 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                      <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.1" />
+                      <circle cx="6" cy="6" r="1.5" fill="currentColor" />
+                    </svg>
+                    {count(map.components)}{" "}
+                    {count(map.components) === 1 ? "component" : "components"}
+                  </div>
+                </CardContent>
+
+                <CardFooter className="border-t border-border pt-3">
+                  <div className="flex w-full items-center justify-between text-[11px] text-muted-foreground/60">
+                    <span>Edited {formatDate(map.updated_at)}</span>
+                    {map.created_by && (
+                      <span className="truncate pl-2 text-right">
+                        by {map.created_by}
+                      </span>
                     )}
+                  </div>
+                </CardFooter>
+              </Card>
+            </Link>
+          ))}
 
-                    <div className="mt-4 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                        <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.1" />
-                        <circle cx="6" cy="6" r="1.5" fill="currentColor" />
-                      </svg>
-                      {count(map.components)}{" "}
-                      {count(map.components) === 1 ? "component" : "components"}
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="border-t border-border pt-3">
-                    <div className="flex w-full items-center justify-between text-[11px] text-muted-foreground/60">
-                      <span>Edited {formatDate(map.updated_at)}</span>
-                      {map.created_by && (
-                        <span className="truncate pl-2 text-right">
-                          by {map.created_by}
-                        </span>
-                      )}
-                    </div>
-                  </CardFooter>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
+          {/* Inline create card */}
+          <Link href={newModalMapHref} className="group block">
+            <div className="flex h-full min-h-[160px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border text-muted-foreground transition-colors hover:bg-accent/30 hover:text-foreground">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path d="M8 2.5v11M2.5 8h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <span className="text-[13px] font-medium">New Modal Map</span>
+            </div>
+          </Link>
+        </div>
       </div>
     </>
   );
