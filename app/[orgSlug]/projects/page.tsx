@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getUserNames } from "@/lib/clerk-users";
 import { PageHeader } from "@/app/components/PageHeader";
 import {
   Card,
@@ -71,6 +72,8 @@ export default async function ProjectsPage({ params }: Props) {
     .order("updated_at", { ascending: false })
     .returns<Project[]>();
 
+  const userNames = await getUserNames((projects ?? []).map((p) => p.created_by));
+
   return (
     <>
       <PageHeader title="Projects" />
@@ -116,7 +119,7 @@ export default async function ProjectsPage({ params }: Props) {
                     <span>Edited {formatDate(project.updated_at)}</span>
                     {project.created_by && (
                       <span className="truncate pl-2 text-right">
-                        by {project.created_by}
+                        by {userNames.get(project.created_by) ?? "Unknown"}
                       </span>
                     )}
                   </div>

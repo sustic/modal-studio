@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getUserNames } from "@/lib/clerk-users";
 import { PageHeader } from "@/app/components/PageHeader";
 import {
   Card,
@@ -92,6 +93,8 @@ export default async function ProjectPage({ params }: Props) {
     .order("updated_at", { ascending: false })
     .returns<ModalMap[]>();
 
+  const userNames = await getUserNames((modalMaps ?? []).map((m) => m.created_by));
+
   const newModalMapHref = `/${orgSlug}/${projectSlug}/new`;
 
   return (
@@ -151,7 +154,7 @@ export default async function ProjectPage({ params }: Props) {
                     <span>Edited {formatDate(map.updated_at)}</span>
                     {map.created_by && (
                       <span className="truncate pl-2 text-right">
-                        by {map.created_by}
+                        by {userNames.get(map.created_by) ?? "Unknown"}
                       </span>
                     )}
                   </div>
