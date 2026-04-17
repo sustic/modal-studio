@@ -4,6 +4,52 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+export type SidebarModalMap = {
+  id: string;
+  name: string;
+  slug: string | null;
+};
+
+export async function getModalMapsForProject(
+  orgSlug: string,
+  projectSlug: string
+): Promise<SidebarModalMap[]> {
+  const { userId } = await auth();
+  if (!userId) return [];
+
+  const { data: org } = await supabaseAdmin
+    .from("organisations")
+    .select("id")
+    .eq("slug", orgSlug)
+    .single();
+  if (!org) return [];
+
+  const { data: membership } = await supabaseAdmin
+    .from("organisation_members")
+    .select("id")
+    .eq("organisation_id", org.id)
+    .eq("clerk_user_id", userId)
+    .single();
+  if (!membership) return [];
+
+  const { data: project } = await supabaseAdmin
+    .from("projects")
+    .select("id")
+    .eq("organisation_id", org.id)
+    .eq("slug", projectSlug)
+    .single();
+  if (!project) return [];
+
+  const { data: maps } = await supabaseAdmin
+    .from("modal_maps")
+    .select("id, name, slug")
+    .eq("project_id", project.id)
+    .order("updated_at", { ascending: false })
+    .limit(10);
+
+  return maps ?? [];
+}
+
 function toSlug(name: string): string {
   return name
     .toLowerCase()

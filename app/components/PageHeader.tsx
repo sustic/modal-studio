@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -37,18 +38,18 @@ export function PageHeader({ title, breadcrumbs }: Props) {
               {breadcrumbs.map((crumb, i) => {
                 const isLast = i === breadcrumbs.length - 1;
                 return (
-                  <BreadcrumbItem key={i}>
-                    {!isLast ? (
-                      <>
+                  <React.Fragment key={i}>
+                    <BreadcrumbItem>
+                      {!isLast ? (
                         <BreadcrumbLink asChild>
                           <Link href={crumb.href!}>{crumb.label}</Link>
                         </BreadcrumbLink>
-                        <BreadcrumbSeparator>/</BreadcrumbSeparator>
-                      </>
-                    ) : (
-                      <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                    )}
-                  </BreadcrumbItem>
+                      ) : (
+                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                      )}
+                    </BreadcrumbItem>
+                    {!isLast && <BreadcrumbSeparator>/</BreadcrumbSeparator>}
+                  </React.Fragment>
                 );
               })}
             </BreadcrumbList>
