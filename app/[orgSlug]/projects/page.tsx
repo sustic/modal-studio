@@ -25,7 +25,6 @@ type Project = {
   created_at: string;
   updated_at: string;
   modal_maps: { count: number }[];
-  components: { count: number }[];
 };
 
 function formatDate(iso: string) {
@@ -68,7 +67,7 @@ export default async function ProjectsPage({ params }: Props) {
   // Fetch projects with counts
   const { data: projects } = await supabaseAdmin
     .from("projects")
-    .select("id, name, slug, description, created_by, created_at, updated_at, modal_maps(count), components(count)")
+    .select("id, name, slug, description, created_by, created_at, updated_at, modal_maps(count)")
     .eq("organisation_id", org.id)
     .order("updated_at", { ascending: false })
     .returns<Project[]>();
@@ -138,13 +137,6 @@ export default async function ProjectsPage({ params }: Props) {
                           <path d="M3.5 5.5h5M3.5 7.5h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
                         </svg>
                         {count(project.modal_maps)} modal {count(project.modal_maps) === 1 ? "map" : "maps"}
-                      </span>
-                      <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                          <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.1" />
-                          <circle cx="6" cy="6" r="1.5" fill="currentColor" />
-                        </svg>
-                        {count(project.components)} {count(project.components) === 1 ? "component" : "components"}
                       </span>
                     </div>
                   </CardContent>
