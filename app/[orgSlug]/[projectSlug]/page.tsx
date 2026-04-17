@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getUserNames } from "@/lib/clerk-users";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/app/components/PageHeader";
 import {
   Card,

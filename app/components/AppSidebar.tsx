@@ -28,6 +28,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { NavUser } from "./NavUser";
 import { getProjectsForOrg, type SidebarProject } from "@/app/actions/projects";
 import {
@@ -152,11 +153,15 @@ function ProjectItem({
         <Collapsible.Content>
           <SidebarMenuSub>
             {loading && (
-              <SidebarMenuSubItem>
-                <span className="px-2 text-[11px] text-muted-foreground/40">
-                  Loading…
-                </span>
-              </SidebarMenuSubItem>
+              <>
+                {[0, 1].map((i) => (
+                  <SidebarMenuSubItem key={i}>
+                    <div className="flex h-7 items-center px-2">
+                      <Skeleton className="h-3.5 w-full rounded-md" />
+                    </div>
+                  </SidebarMenuSubItem>
+                ))}
+              </>
             )}
             {maps && maps.length === 0 && !loading && (
               <SidebarMenuSubItem>
@@ -204,13 +209,19 @@ export function AppSidebar({
   const orgSlug = NON_ORG_SEGMENTS.has(firstSegment) ? null : firstSegment;
 
   const [projects, setProjects] = React.useState<SidebarProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = React.useState(!!orgSlug);
 
   React.useEffect(() => {
     if (!orgSlug) {
       setProjects([]);
+      setProjectsLoading(false);
       return;
     }
-    getProjectsForOrg(orgSlug).then(setProjects);
+    setProjectsLoading(true);
+    getProjectsForOrg(orgSlug).then((result) => {
+      setProjects(result);
+      setProjectsLoading(false);
+    });
   }, [orgSlug]);
 
   const hasMore = projects.length === 6;
@@ -243,16 +254,28 @@ export function AppSidebar({
             <SidebarGroupLabel>Projects</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {visibleProjects.map((project) => (
-                  <ProjectItem
-                    key={project.id}
-                    project={project}
-                    orgSlug={orgSlug}
-                    pathname={pathname}
-                  />
-                ))}
+                {projectsLoading ? (
+                  <>
+                    {[0, 1, 2].map((i) => (
+                      <SidebarMenuItem key={i}>
+                        <div className="flex h-8 items-center px-2">
+                          <Skeleton className="h-4 w-full rounded-md" />
+                        </div>
+                      </SidebarMenuItem>
+                    ))}
+                  </>
+                ) : (
+                  visibleProjects.map((project) => (
+                    <ProjectItem
+                      key={project.id}
+                      project={project}
+                      orgSlug={orgSlug}
+                      pathname={pathname}
+                    />
+                  ))
+                )}
 
-                {hasMore && (
+                {!projectsLoading && hasMore && (
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
