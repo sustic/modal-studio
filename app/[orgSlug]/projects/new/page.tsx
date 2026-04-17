@@ -44,20 +44,13 @@ export default async function NewProjectPage({ params }: Props) {
 
   return (
     <>
-      <PageHeader title="New Project" />
+      <PageHeader
+        breadcrumbs={[
+          { label: "Projects", href: `/${orgSlug}/projects` },
+          { label: "New Project" },
+        ]}
+      />
       <div className="flex flex-1 flex-col px-8 py-8">
-        {/* Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-[12px] text-muted-foreground/50">
-          <a
-            href={`/${orgSlug}/projects`}
-            className="transition-colors hover:text-muted-foreground"
-          >
-            Projects
-          </a>
-          <span>/</span>
-          <span className="text-muted-foreground/70">New Project</span>
-        </div>
-
         <div className="w-full max-w-xl">
           <NewProjectForm
             orgSlug={orgSlug}

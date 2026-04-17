@@ -99,20 +99,13 @@ export default async function ProjectPage({ params }: Props) {
 
   return (
     <>
-      <PageHeader title={project.name} />
+      <PageHeader
+        breadcrumbs={[
+          { label: "Projects", href: `/${orgSlug}/projects` },
+          { label: project.name },
+        ]}
+      />
       <div className="flex flex-1 flex-col px-8 py-8">
-        {/* Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-[12px] text-muted-foreground/50">
-          <Link
-            href={`/${orgSlug}/projects`}
-            className="transition-colors hover:text-muted-foreground"
-          >
-            Projects
-          </Link>
-          <span>/</span>
-          <span className="text-muted-foreground/70">{project.name}</span>
-        </div>
-
         {/* Modal map grid */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(modalMaps ?? []).map((map) => (

@@ -76,7 +76,7 @@ export default async function ProjectsPage({ params }: Props) {
 
   return (
     <>
-      <PageHeader title="Projects" />
+      <PageHeader breadcrumbs={[{ label: "Projects" }]} />
       <div className="flex flex-1 flex-col px-8 py-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(projects ?? []).map((project) => (

@@ -80,7 +80,7 @@ export default async function OrganisationsPage() {
 
   return (
     <>
-      <PageHeader title="All Organisations" />
+      <PageHeader breadcrumbs={[{ label: "Organisations" }]} />
       <div className="flex flex-1 flex-col px-8 py-8">
       {/* Subheader row */}
       <div className="mb-8 flex items-center justify-between">

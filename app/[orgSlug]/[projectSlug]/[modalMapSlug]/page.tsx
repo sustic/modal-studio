@@ -23,7 +23,7 @@ export default async function ModalMapPage({ params }: Props) {
 
   const { data: project } = await supabaseAdmin
     .from("projects")
-    .select("id")
+    .select("id, name")
     .eq("organisation_id", org.id)
     .eq("slug", projectSlug)
     .single();
@@ -37,11 +37,15 @@ export default async function ModalMapPage({ params }: Props) {
     .eq("slug", modalMapSlug)
     .single();
 
-  const title = modalMap?.name ?? "Modal Map";
-
   return (
     <>
-      <PageHeader title={title} />
+      <PageHeader
+        breadcrumbs={[
+          { label: "Projects", href: `/${orgSlug}/projects` },
+          { label: project.name, href: `/${orgSlug}/${projectSlug}` },
+          { label: modalMap?.name ?? "Modal Map" },
+        ]}
+      />
       <div className="flex flex-1 items-center justify-center">
         <p className="text-[13px] text-muted-foreground">
           Modal map editor coming soon
