@@ -90,6 +90,13 @@ function SegmentedControl({
 // ── DetailsDrawer ──────────────────────────────────────────────────────────────
 
 export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
+  const [closing, setClosing] = useState(false);
+
+  function dismiss() {
+    setClosing(true);
+    setTimeout(onClose, 200);
+  }
+
   const [tab, setTab] = useState<Tab>("new");
 
   // ── New Component form ───────────────────────────────────────────────────
@@ -187,13 +194,18 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
 
   return (
     <div
-      className="fixed inset-y-0 right-0 z-20 flex w-[380px] flex-col border-l bg-card shadow-xl"
+      className={[
+        "fixed inset-y-0 right-0 z-20 flex w-[380px] flex-col border-l bg-card shadow-xl duration-200",
+        closing
+          ? "animate-out slide-out-to-right"
+          : "animate-in slide-in-from-right",
+      ].join(" ")}
     >
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
         <span className="text-[13px] font-semibold">Add Component</span>
         <button
-          onClick={onClose}
+          onClick={dismiss}
           className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
           aria-label="Close"
         >

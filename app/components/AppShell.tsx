@@ -11,6 +11,7 @@ export function AppShell({ isSuperadmin, children }: Props) {
   return (
     <TooltipProvider>
       <SidebarProvider
+        className="flex-1"
         style={
           {
             "--sidebar-width": "calc(var(--spacing) * 72)",

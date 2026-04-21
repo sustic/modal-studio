@@ -403,13 +403,13 @@ export function WorkplaceClient({
       </header>
 
       {/* ── Modal Map View ───────────────────────────────────────────────── */}
-      <div className="relative flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden">
 
-        {/* Fixed column header row ─────────────────────────────────────── */}
-        <div className="flex h-12 shrink-0 border-b bg-card">
+        {/* ── Sticky header row: component column header + ruler ────────── */}
+        <div className="flex h-12 shrink-0 border-b bg-card" style={{ zIndex: 10 }}>
 
           {/* Component column header */}
-          <div className="flex w-[280px] shrink-0 items-center justify-between border-r px-4">
+          <div className="flex w-[280px] shrink-0 items-center justify-between border-r border-border/60 px-4">
             <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               Components
             </span>
@@ -422,66 +422,55 @@ export function WorkplaceClient({
             </button>
           </div>
 
-          {/* Frequency ruler ──────────────────────────────────────────── */}
-          {/* This div is also the interaction surface for zoom/pan.       */}
+          {/* Frequency ruler — interaction surface for zoom/pan */}
           <div
             ref={rulerRef}
             className="relative flex-1 select-none overflow-hidden"
           >
-            {canvasWidth > 0 &&
-              ticks.map((f) => {
-                const x = freqToX(f, viewStart, viewEnd, canvasWidth);
-                // Skip ticks fully off-screen
-                if (x < -40 || x > canvasWidth + 40) return null;
+            {canvasWidth > 0 && ticks.map((f) => {
+              const x = freqToX(f, viewStart, viewEnd, canvasWidth);
+              if (x < -40 || x > canvasWidth + 40) return null;
 
-                // The tick line always sits at the exact frequency pixel.
-                // The label shifts so it never overflows either edge.
-                const EDGE = 30; // px threshold for "near the edge"
-                let labelLeft: number;
-                let labelTransform: string;
-                if (x < EDGE) {
-                  // Near left edge — pin label 4px from the left
-                  labelLeft      = 4;
-                  labelTransform = "none";
-                } else if (x > canvasWidth - EDGE) {
-                  // Near right edge — pin label 4px from the right
-                  labelLeft      = canvasWidth - 4;
-                  labelTransform = "translateX(-100%)";
-                } else {
-                  // Centre label on tick mark
-                  labelLeft      = x;
-                  labelTransform = "translateX(-50%)";
-                }
+              const EDGE = 30;
+              let labelLeft: number;
+              let labelTransform: string;
+              if (x < EDGE) {
+                labelLeft      = 4;
+                labelTransform = "none";
+              } else if (x > canvasWidth - EDGE) {
+                labelLeft      = canvasWidth - 4;
+                labelTransform = "translateX(-100%)";
+              } else {
+                labelLeft      = x;
+                labelTransform = "translateX(-50%)";
+              }
 
-                return (
-                  <React.Fragment key={f}>
-                    {/* Label — position adjusted to avoid edge clipping */}
-                    <span
-                      className="absolute mb-1.5 text-[10px] leading-none tabular-nums text-muted-foreground/60"
-                      style={{ left: labelLeft, bottom: "8px", transform: labelTransform }}
-                    >
-                      {formatFreq(f)}
-                    </span>
-                    {/* Tick line — always at exact frequency position */}
-                    <div
-                      className="absolute bottom-0 h-2 w-px bg-border/70"
-                      style={{ left: x }}
-                    />
-                  </React.Fragment>
-                );
-              })}
+              return (
+                <React.Fragment key={f}>
+                  <span
+                    className="absolute text-[10px] leading-none tabular-nums text-muted-foreground/60"
+                    style={{ left: labelLeft, bottom: "8px", transform: labelTransform }}
+                  >
+                    {formatFreq(f)}
+                  </span>
+                  <div
+                    className="absolute bottom-0 h-2 w-px bg-border/70"
+                    style={{ left: x }}
+                  />
+                </React.Fragment>
+              );
+            })}
           </div>
         </div>
 
-        {/* ── Unified scroll container ──────────────────────────────────── */}
-        {/* Single overflow-y-auto div. Each row is full-width flex, so     */}
-        {/* the component-name cell and canvas cell scroll as one unit.     */}
+        {/* ── Single scroll container ───────────────────────────────────── */}
+        {/* Full-width rows, each with a 280px left cell + flex-1 right cell */}
         <div className="flex-1 overflow-y-auto">
-          {/* Component rows — always rendered (map produces nothing when empty) */}
+
           {componentList.map((component) => (
             <div
               key={component.id}
-              className="flex h-12 border-b border-border/60 transition-colors last:border-b-0 hover:bg-accent/20"
+              className="flex h-12 border-b border-border/60 last:border-b-0"
             >
               {/* Component name cell */}
               <div className="flex w-[280px] shrink-0 items-center gap-2 border-r border-border/60 bg-card px-4">
@@ -502,14 +491,12 @@ export function WorkplaceClient({
                   const x1 = freqToX(range.base_low,  viewStart, viewEnd, canvasWidth);
                   const x2 = freqToX(range.base_high, viewStart, viewEnd, canvasWidth);
 
-                  // Skip if base range is entirely outside the view
                   if (x2 < 0 || x1 > canvasWidth) return null;
 
                   const baseLeft  = Math.max(0, x1);
                   const baseRight = Math.min(canvasWidth, x2);
                   const baseWidth = baseRight - baseLeft;
 
-                  // Safe range (optional)
                   let safeLeft = 0, safeWidth = 0, showSafe = false;
                   if (range.safe_low != null && range.safe_high != null) {
                     const sx1 = freqToX(range.safe_low,  viewStart, viewEnd, canvasWidth);
@@ -523,20 +510,18 @@ export function WorkplaceClient({
 
                   return (
                     <React.Fragment key={ri}>
-                      {/* Safe range bar — full row height minus 8px padding, ~20% opacity */}
                       {showSafe && (
                         <div
                           className="absolute rounded"
                           style={{
-                            left:             safeLeft,
-                            width:            safeWidth,
-                            top:              8,
-                            bottom:           8,
+                            left:            safeLeft,
+                            width:           safeWidth,
+                            top:             8,
+                            bottom:          8,
                             backgroundColor: "oklch(0.55 0.12 250 / 0.20)",
                           }}
                         />
                       )}
-                      {/* Base range bar — 40% of row height, centred, ~70% opacity */}
                       <div
                         className="absolute rounded"
                         style={{
@@ -555,14 +540,11 @@ export function WorkplaceClient({
             </div>
           ))}
 
-          {/* Empty state — shown only in the canvas area when there are no components */}
           {componentList.length === 0 && (
             <div className="flex min-h-[100vh]">
               <div className="w-[280px] shrink-0 border-r border-border/60 bg-card" />
               <div className="flex flex-1 flex-col items-center justify-center py-24 text-center">
-                <p className="text-[13px] italic text-muted-foreground/50">
-                  No components yet
-                </p>
+                <p className="text-[13px] italic text-muted-foreground/50">No components yet</p>
                 <p className="mt-1 text-[12px] text-muted-foreground/35">
                   Use the + button above to add the first component.
                 </p>
