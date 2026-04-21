@@ -164,6 +164,10 @@ export function WorkplaceClient({
   // width used by freqToX. It sits in the fixed header row.
   const rulerRef = useRef<HTMLDivElement>(null);
 
+  // The canvas rows container — also needs wheel interception to prevent
+  // horizontal swipe triggering browser back/forward navigation.
+  const canvasRowsRef = useRef<HTMLDivElement>(null);
+
   // ── Clamped view updater ───────────────────────────────────────────────────
   const setView = useCallback((start: number, end: number) => {
     const { MIN_FREQ, MAX_FREQ, MIN_RANGE, MAX_RANGE } = SCRUBBER_CONFIG;
@@ -196,34 +200,46 @@ export function WorkplaceClient({
     return () => ro.disconnect();
   }, []);
 
-  // ── Wheel zoom (passive: false so we can call preventDefault) ─────────────
+  // ── Wheel zoom + horizontal pan (passive: false so we can preventDefault) ──
   useEffect(() => {
-    const el = rulerRef.current;
-    if (!el) return;
+    const ruler  = rulerRef.current;
+    const canvas = canvasRowsRef.current;
+    if (!ruler) return;
 
     function onWheel(e: WheelEvent) {
-      e.preventDefault();
-      const rect = el!.getBoundingClientRect();
-      const w = rect.width;
+      const w = ruler!.getBoundingClientRect().width;
       if (w === 0) return;
 
-      const mouseX   = e.clientX - rect.left;
       const { start, end } = viewRef.current;
-      const pivotFreq = start + (mouseX / w) * (end - start);
-      // Sensitivity-based zoom: deltaY is in pixels/lines/pages depending on
-      // the device; multiply by sensitivity to get a fractional scale change.
-      const scale    = 1 + e.deltaY * SCRUBBER_CONFIG.ZOOM_SENSITIVITY;
-      const factor   = Math.max(0.1, scale); // clamp to prevent sign flip
-      const newRange  = (end - start) * factor;
 
-      setView(
-        pivotFreq - (mouseX / w)       * newRange,
-        pivotFreq + ((w - mouseX) / w) * newRange,
-      );
+      if (e.ctrlKey || e.metaKey) {
+        // Pinch-to-zoom or Ctrl+scroll — zoom around cursor position
+        e.preventDefault();
+        const mouseX    = e.clientX - ruler!.getBoundingClientRect().left;
+        const pivotFreq = start + (mouseX / w) * (end - start);
+        const scale     = 1 + e.deltaY * SCRUBBER_CONFIG.ZOOM_SENSITIVITY;
+        const factor    = Math.max(0.1, scale);
+        const newRange  = (end - start) * factor;
+        setView(
+          pivotFreq - (mouseX / w)       * newRange,
+          pivotFreq + ((w - mouseX) / w) * newRange,
+        );
+      } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        // Horizontal swipe — always block browser navigation first, then pan
+        e.preventDefault();
+        const freqPerPixel = (viewRef.current.end - viewRef.current.start) / w;
+        const deltaFreq    = e.deltaX * freqPerPixel;
+        setView(viewRef.current.start + deltaFreq, viewRef.current.end + deltaFreq);
+      }
+      // Pure vertical scroll — do nothing, let browser scroll the rows normally
     }
 
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    ruler.addEventListener("wheel", onWheel, { passive: false });
+    canvas?.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      ruler.removeEventListener("wheel", onWheel);
+      canvas?.removeEventListener("wheel", onWheel);
+    };
   }, [setView]);
 
   // ── Mouse drag pan ─────────────────────────────────────────────────────────
@@ -465,7 +481,7 @@ export function WorkplaceClient({
 
         {/* ── Single scroll container ───────────────────────────────────── */}
         {/* Full-width rows, each with a 280px left cell + flex-1 right cell */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={canvasRowsRef} className="flex-1 overflow-y-auto">
 
           {componentList.map((component) => (
             <div
