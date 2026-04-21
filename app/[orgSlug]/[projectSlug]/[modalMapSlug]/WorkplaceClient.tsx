@@ -554,7 +554,7 @@ export function WorkplaceClient({
 
           {/* Empty state — shown only in the canvas area when there are no components */}
           {componentList.length === 0 && (
-            <div className="flex min-h-[200px]">
+            <div className="flex min-h-[100vh]">
               <div className="w-[280px] shrink-0 border-r border-border/60 bg-card" />
               <div className="flex flex-1 flex-col items-center justify-center py-24 text-center">
                 <p className="text-[13px] italic text-muted-foreground/50">
