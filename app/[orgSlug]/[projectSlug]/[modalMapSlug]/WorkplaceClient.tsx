@@ -487,8 +487,29 @@ export function WorkplaceClient({
 
               {/* Canvas cell — frequency bars */}
               <div className="relative flex-1 overflow-hidden">
-                {canvasWidth > 0 && component.frequency_ranges.map((range, ri) => {
-                  const x1 = freqToX(range.base_low,  viewStart, viewEnd, canvasWidth);
+                {canvasWidth > 0 && (console.log('component:', component.name, 'ranges:', JSON.stringify(component.frequency_ranges)), true) && component.frequency_ranges.map((range, ri) => {
+                  const x1 = freqToX(range.base_low, viewStart, viewEnd, canvasWidth);
+
+                  // ── Point frequency (base_high is null) ──────────────────
+                  if (range.base_high == null) {
+                    if (x1 < 0 || x1 > canvasWidth) return null;
+                    return (
+                      <div
+                        key={ri}
+                        className="absolute rounded"
+                        style={{
+                          left:            x1 - 2,
+                          width:           4,
+                          top:             "50%",
+                          height:          "40%",
+                          transform:       "translateY(-50%)",
+                          backgroundColor: "oklch(0.55 0.12 250 / 0.70)",
+                        }}
+                      />
+                    );
+                  }
+
+                  // ── Range bar (base_high is set) ─────────────────────────
                   const x2 = freqToX(range.base_high, viewStart, viewEnd, canvasWidth);
 
                   if (x2 < 0 || x1 > canvasWidth) return null;

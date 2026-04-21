@@ -103,28 +103,33 @@ export async function addComponentToModalMap(
   }
 
   // Insert frequency ranges (batch insert; non-fatal if it fails)
+  console.log("[addComponent] raw frequencyRanges received:", JSON.stringify(input.frequencyRanges));
   const savedRanges: FrequencyRange[] = [];
-  if (input.frequencyRanges.length > 0) {
-    const { data: ranges, error: rangesError } = await supabaseAdmin
+  const rangesToInsert = input.frequencyRanges
+    .filter((r) => r.base_low != null)
+    .map((r) => ({
+      modal_map_component_id: component.id,
+      base_low:  r.base_low,
+      base_high: r.base_high ?? null,
+      safe_low:  r.safe_low  ?? null,
+      safe_high: r.safe_high ?? null,
+    }));
+  console.log("[addComponent] rangesToInsert:", JSON.stringify(rangesToInsert));
+  if (rangesToInsert.length > 0) {
+    const insertResult = await supabaseAdmin
       .from("modal_map_component_frequency_ranges")
-      .insert(
-        input.frequencyRanges.map((r) => ({
-          modal_map_component_id: component.id,
-          base_low: r.base_low,
-          base_high: r.base_high,
-          safe_low: r.safe_low,
-          safe_high: r.safe_high,
-        }))
-      )
+      .insert(rangesToInsert)
       .select("base_low, base_high, safe_low, safe_high");
+    console.log("[addComponent] insert result:", JSON.stringify(insertResult));
 
+    const { data: ranges, error: rangesError } = insertResult;
     if (rangesError) {
       console.error("Failed to insert frequency ranges:", rangesError.message);
     } else {
       for (const r of ranges ?? []) {
         savedRanges.push({
           base_low:  Number(r.base_low),
-          base_high: Number(r.base_high),
+          base_high: r.base_high != null ? Number(r.base_high) : null,
           safe_low:  r.safe_low  != null ? Number(r.safe_low)  : null,
           safe_high: r.safe_high != null ? Number(r.safe_high) : null,
         });

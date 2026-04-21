@@ -22,6 +22,18 @@ type RangeField = {
   safe_high: string;
 };
 
+type RangeErrors = {
+  base_low?: string;
+  base_high?: string;
+  safe_low?: string;
+  safe_high?: string;
+};
+
+type FormErrors = {
+  name?: string;
+  ranges: RangeErrors[];
+};
+
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 export type AddComponentData = {
@@ -45,8 +57,19 @@ function makeRange(): RangeField {
   return { id: Math.random().toString(36).slice(2), base_low: "", base_high: "", safe_low: "", safe_high: "" };
 }
 
-const inputCls =
-  "w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring/30";
+const baseInputCls =
+  "w-full rounded-md border bg-background px-3 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 outline-none transition-colors";
+
+function inputCls(error?: string) {
+  return error
+    ? `${baseInputCls} border-destructive focus:border-destructive focus:ring-1 focus:ring-destructive/30`
+    : `${baseInputCls} border-border focus:border-ring focus:ring-1 focus:ring-ring/30`;
+}
+
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return <span className="text-[11px] text-destructive">{msg}</span>;
+}
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -87,6 +110,87 @@ function SegmentedControl({
   );
 }
 
+// ── Validation ─────────────────────────────────────────────────────────────────
+
+function validate(name: string, ranges: RangeField[]): FormErrors {
+  const errors: FormErrors = { ranges: ranges.map(() => ({})) };
+
+  if (!name.trim()) {
+    errors.name = "Name is required";
+  }
+
+  ranges.forEach((r, i) => {
+    const err: RangeErrors = {};
+    const loRaw = r.base_low.trim();
+    const hiRaw = r.base_high.trim();
+    const slRaw = r.safe_low.trim();
+    const shRaw = r.safe_high.trim();
+
+    const lo = loRaw === "" ? null : parseFloat(loRaw);
+    const hi = hiRaw === "" ? null : parseFloat(hiRaw);
+    const sl = slRaw === "" ? null : parseFloat(slRaw);
+    const sh = shRaw === "" ? null : parseFloat(shRaw);
+
+    // Base Low — required
+    if (loRaw === "") {
+      err.base_low = "Required";
+    } else if (lo === null || isNaN(lo) || lo < 0) {
+      err.base_low = "Must be 0 or greater";
+    } else if (lo > 6000) {
+      err.base_low = "Must be 6000 or less";
+    }
+
+    // Base High — optional; if filled: must be > base_low and <= 6000
+    if (hiRaw !== "") {
+      if (hi === null || isNaN(hi)) {
+        err.base_high = "Invalid value";
+      } else if (hi > 6000) {
+        err.base_high = "Must be 6000 or less";
+      } else if (lo !== null && !isNaN(lo) && hi <= lo) {
+        err.base_high = "Must be greater than Base Low";
+      }
+    }
+
+    // Safe Low — optional; if filled: must be >= 0, and Safe High must also be filled
+    if (slRaw !== "") {
+      if (sl === null || isNaN(sl) || sl < 0) {
+        err.safe_low = "Must be 0 or greater";
+      } else if (shRaw === "") {
+        err.safe_low = "Safe High is also required";
+      }
+    }
+
+    // Safe High — optional; if filled: must be > safe_low, and Safe Low must also be filled
+    if (shRaw !== "") {
+      if (slRaw === "") {
+        err.safe_high = "Safe Low is also required";
+      } else if (sh !== null && !isNaN(sh) && sl !== null && !isNaN(sl) && sh <= sl) {
+        err.safe_high = "Must be greater than Safe Low";
+      }
+    }
+
+    // Safe range must contain base range (all four filled, no prior safe errors)
+    if (
+      lo !== null && hi !== null && sl !== null && sh !== null &&
+      !isNaN(lo) && !isNaN(hi) && !isNaN(sl) && !isNaN(sh) &&
+      !err.safe_low && !err.safe_high
+    ) {
+      if (sl > lo || sh < hi) {
+        err.safe_low = "Safe range should contain the base range";
+      }
+    }
+
+    errors.ranges[i] = err;
+  });
+
+  return errors;
+}
+
+function hasErrors(errors: FormErrors): boolean {
+  if (errors.name) return true;
+  return errors.ranges.some((r) => r.base_low || r.base_high || r.safe_low || r.safe_high);
+}
+
 // ── DetailsDrawer ──────────────────────────────────────────────────────────────
 
 export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
@@ -104,7 +208,8 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
   const [description, setDescription] = useState("");
   const [componentType, setComponentType] = useState<ComponentType>("passive");
   const [ranges, setRanges]           = useState<RangeField[]>([makeRange()]);
-  const [formError, setFormError]     = useState<string | null>(null);
+  const [submitted, setSubmitted]     = useState(false);
+  const [errors, setErrors]           = useState<FormErrors>({ ranges: [] });
 
   // ── Template tab ─────────────────────────────────────────────────────────
   const [templates, setTemplates]           = useState<ProjectTemplate[] | null>(null);
@@ -133,30 +238,23 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
 
   function handleSubmitNew(e: React.FormEvent) {
     e.preventDefault();
-    setFormError(null);
+    setSubmitted(true);
 
-    if (!name.trim()) {
-      setFormError("Component name is required.");
-      return;
-    }
+    const errs = validate(name, ranges);
+    setErrors(errs);
+    if (hasErrors(errs)) return;
 
+    // Build parsed ranges — include any range where base_low is valid.
+    // base_high is optional; null means a single-point frequency.
     const parsed: FrequencyRange[] = [];
     for (const r of ranges) {
       const lo = parseFloat(r.base_low);
-      const hi = parseFloat(r.base_high);
-      if (isNaN(lo) || isNaN(hi)) {
-        setFormError("Base Low and Base High are required for all frequency ranges.");
-        return;
-      }
-      if (lo >= hi) {
-        setFormError("Base Low must be less than Base High for each range.");
-        return;
-      }
+      if (isNaN(lo)) continue;
       parsed.push({
         base_low:  lo,
-        base_high: hi,
-        safe_low:  r.safe_low  !== "" ? parseFloat(r.safe_low)  : null,
-        safe_high: r.safe_high !== "" ? parseFloat(r.safe_high) : null,
+        base_high: r.base_high.trim() !== "" ? parseFloat(r.base_high) : null,
+        safe_low:  r.safe_low.trim()  !== "" ? parseFloat(r.safe_low)  : null,
+        safe_high: r.safe_high.trim() !== "" ? parseFloat(r.safe_high) : null,
       });
     }
 
@@ -189,6 +287,9 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
       t.name.toLowerCase().includes(search.toLowerCase()) ||
       t.description?.toLowerCase().includes(search.toLowerCase())
   );
+
+  // ── Derived: current errors (only shown after first submit attempt) ────────
+  const liveErrors: FormErrors = submitted ? validate(name, ranges) : { ranges: ranges.map(() => ({})) };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -237,29 +338,25 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
         {/* ── New Component ────────────────────────────────────────────── */}
         {tab === "new" && (
           <form id="new-component-form" onSubmit={handleSubmitNew} className="flex flex-col gap-5 p-4">
-            {formError && (
-              <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-[12px] text-destructive">
-                {formError}
-              </div>
-            )}
 
             {/* Name */}
             <div className="flex flex-col gap-1.5">
               <FieldLabel>Name *</FieldLabel>
               <input
-                className={inputCls}
+                className={inputCls(liveErrors.name)}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Engine Mount"
                 autoFocus
               />
+              <FieldError msg={liveErrors.name} />
             </div>
 
             {/* Description */}
             <div className="flex flex-col gap-1.5">
               <FieldLabel>Description</FieldLabel>
               <textarea
-                className={`${inputCls} resize-none`}
+                className={`${inputCls(undefined)} resize-none`}
                 rows={2}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -284,47 +381,54 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
             <div className="flex flex-col gap-3">
               <FieldLabel>Frequency Ranges</FieldLabel>
 
-              {ranges.map((range, i) => (
-                <div key={range.id} className="flex flex-col gap-2 rounded-md border border-border p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground/50">Range {i + 1}</span>
-                    {ranges.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setRanges((rs) => rs.filter((r) => r.id !== range.id))}
-                        className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        aria-label="Remove range"
-                      >
-                        <Trash2 size={11} />
-                      </button>
-                    )}
-                  </div>
+              {ranges.map((range, i) => {
+                const rangeErr = liveErrors.ranges[i] ?? {};
+                return (
+                  <div key={range.id} className="flex flex-col gap-2 rounded-md border border-border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground/50">Range {i + 1}</span>
+                      {ranges.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setRanges((rs) => rs.filter((r) => r.id !== range.id))}
+                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          aria-label="Remove range"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    {(
-                      [
-                        { field: "base_low",  label: "Base Low (Hz)",  placeholder: "0"    },
-                        { field: "base_high", label: "Base High (Hz)", placeholder: "1000" },
-                        { field: "safe_low",  label: "Safe Low (Hz)",  placeholder: "Opt." },
-                        { field: "safe_high", label: "Safe High (Hz)", placeholder: "Opt." },
-                      ] as const
-                    ).map(({ field, label, placeholder }) => (
-                      <div key={field} className="flex flex-col gap-1">
-                        <span className="text-[10px] text-muted-foreground/50">{label}</span>
-                        <input
-                          className={inputCls}
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={range[field]}
-                          onChange={(e) => updateRange(range.id, field, e.target.value)}
-                          placeholder={placeholder}
-                        />
-                      </div>
-                    ))}
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-3">
+                      {(
+                        [
+                          { field: "base_low",  label: "Base Low (Hz)",  placeholder: "0"    },
+                          { field: "base_high", label: "Base High (Hz)", placeholder: "Opt." },
+                          { field: "safe_low",  label: "Safe Low (Hz)",  placeholder: "Opt." },
+                          { field: "safe_high", label: "Safe High (Hz)", placeholder: "Opt." },
+                        ] as const
+                      ).map(({ field, label, placeholder }) => {
+                        const fieldErr = rangeErr[field];
+                        return (
+                          <div key={field} className="flex flex-col gap-1">
+                            <span className="text-[10px] text-muted-foreground/50">{label}</span>
+                            <input
+                              className={inputCls(fieldErr)}
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={range[field]}
+                              onChange={(e) => updateRange(range.id, field, e.target.value)}
+                              placeholder={placeholder}
+                            />
+                            <FieldError msg={fieldErr} />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               <button
                 type="button"
@@ -342,7 +446,7 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
         {tab === "template" && (
           <div className="flex flex-col gap-3 p-4">
             <input
-              className={inputCls}
+              className={inputCls(undefined)}
               placeholder="Search templates…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
