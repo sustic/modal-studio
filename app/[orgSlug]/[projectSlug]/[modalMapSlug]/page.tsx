@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { PageHeader } from "@/app/components/PageHeader";
+import { WorkplaceClient } from "./WorkplaceClient";
 
 interface Props {
   params: Promise<{ orgSlug: string; projectSlug: string; modalMapSlug: string }>;
@@ -21,6 +21,15 @@ export default async function ModalMapPage({ params }: Props) {
 
   if (!org) redirect("/waiting");
 
+  const { data: membership } = await supabaseAdmin
+    .from("organisation_members")
+    .select("id")
+    .eq("organisation_id", org.id)
+    .eq("clerk_user_id", userId)
+    .single();
+
+  if (!membership) redirect("/waiting");
+
   const { data: project } = await supabaseAdmin
     .from("projects")
     .select("id, name")
@@ -32,25 +41,26 @@ export default async function ModalMapPage({ params }: Props) {
 
   const { data: modalMap } = await supabaseAdmin
     .from("modal_maps")
-    .select("id, name")
+    .select("id, name, slug")
     .eq("project_id", project.id)
     .eq("slug", modalMapSlug)
     .single();
 
+  if (!modalMap) redirect(`/${orgSlug}/${projectSlug}`);
+
+  const { data: components } = await supabaseAdmin
+    .from("components")
+    .select("id, name, description")
+    .eq("modal_map_id", modalMap.id)
+    .order("created_at", { ascending: true });
+
   return (
-    <>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Projects", href: `/${orgSlug}/projects` },
-          { label: project.name, href: `/${orgSlug}/${projectSlug}` },
-          { label: modalMap?.name ?? "Modal Map" },
-        ]}
-      />
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-[13px] text-muted-foreground">
-          Modal map editor coming soon
-        </p>
-      </div>
-    </>
+    <WorkplaceClient
+      orgSlug={orgSlug}
+      projectSlug={projectSlug}
+      projectName={project.name}
+      modalMap={{ id: modalMap.id, name: modalMap.name }}
+      components={components ?? []}
+    />
   );
 }
