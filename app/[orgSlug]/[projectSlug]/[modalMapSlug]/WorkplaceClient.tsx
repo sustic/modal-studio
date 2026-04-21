@@ -164,8 +164,11 @@ export function WorkplaceClient({
   // width used by freqToX. It sits in the fixed header row.
   const rulerRef = useRef<HTMLDivElement>(null);
 
-  // The canvas rows container — also needs wheel interception to prevent
-  // horizontal swipe triggering browser back/forward navigation.
+  // The outermost Modal Map View container — wheel listener lives here so
+  // horizontal swipes anywhere in the workspace are intercepted.
+  const mapViewRef = useRef<HTMLDivElement>(null);
+
+  // The canvas rows container (kept for other uses).
   const canvasRowsRef = useRef<HTMLDivElement>(null);
 
   // ── Clamped view updater ───────────────────────────────────────────────────
@@ -200,21 +203,22 @@ export function WorkplaceClient({
     return () => ro.disconnect();
   }, []);
 
-  // ── Wheel zoom + horizontal pan (passive: false so we can preventDefault) ──
+  // ── Wheel zoom + horizontal pan ───────────────────────────────────────────
+  // Attached to the outermost map view container so every wheel event inside
+  // the workspace is captured before the browser can act on it.
   useEffect(() => {
-    const ruler  = rulerRef.current;
-    const canvas = canvasRowsRef.current;
-    if (!ruler) return;
+    const container = mapViewRef.current;
+    const ruler     = rulerRef.current;
+    if (!container || !ruler) return;
 
     function onWheel(e: WheelEvent) {
       const w = ruler!.getBoundingClientRect().width;
       if (w === 0) return;
 
-      const { start, end } = viewRef.current;
-
       if (e.ctrlKey || e.metaKey) {
         // Pinch-to-zoom or Ctrl+scroll — zoom around cursor position
         e.preventDefault();
+        const { start, end } = viewRef.current;
         const mouseX    = e.clientX - ruler!.getBoundingClientRect().left;
         const pivotFreq = start + (mouseX / w) * (end - start);
         const scale     = 1 + e.deltaY * SCRUBBER_CONFIG.ZOOM_SENSITIVITY;
@@ -225,21 +229,17 @@ export function WorkplaceClient({
           pivotFreq + ((w - mouseX) / w) * newRange,
         );
       } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        // Horizontal swipe — always block browser navigation first, then pan
+        // Horizontal swipe — unconditionally block browser navigation and pan
         e.preventDefault();
         const freqPerPixel = (viewRef.current.end - viewRef.current.start) / w;
         const deltaFreq    = e.deltaX * freqPerPixel;
         setView(viewRef.current.start + deltaFreq, viewRef.current.end + deltaFreq);
       }
-      // Pure vertical scroll — do nothing, let browser scroll the rows normally
+      // Pure vertical scroll — fall through, browser handles row scrolling
     }
 
-    ruler.addEventListener("wheel", onWheel, { passive: false });
-    canvas?.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      ruler.removeEventListener("wheel", onWheel);
-      canvas?.removeEventListener("wheel", onWheel);
-    };
+    container.addEventListener("wheel", onWheel, { passive: false });
+    return () => container.removeEventListener("wheel", onWheel);
   }, [setView]);
 
   // ── Mouse drag pan ─────────────────────────────────────────────────────────
@@ -419,7 +419,7 @@ export function WorkplaceClient({
       </header>
 
       {/* ── Modal Map View ───────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div ref={mapViewRef} className="flex flex-1 flex-col overflow-hidden">
 
         {/* ── Sticky header row: component column header + ruler ────────── */}
         <div className="flex h-12 shrink-0 border-b bg-card" style={{ zIndex: 10 }}>
