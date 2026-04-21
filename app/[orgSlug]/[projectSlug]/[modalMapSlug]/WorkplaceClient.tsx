@@ -104,8 +104,8 @@ export function WorkplaceClient({
   const backHref = `/${orgSlug}/${projectSlug}`;
 
   // ── Frequency view state ───────────────────────────────────────────────────
-  const [viewStart, setViewStart] = useState(SCRUBBER_CONFIG.MIN_FREQ);
-  const [viewEnd, setViewEnd]     = useState(SCRUBBER_CONFIG.MAX_FREQ);
+  const [viewStart, setViewStart] = useState<number>(SCRUBBER_CONFIG.MIN_FREQ);
+  const [viewEnd, setViewEnd]     = useState<number>(SCRUBBER_CONFIG.MAX_FREQ);
 
   // Ref mirrors state so event-handler closures always see current values
   // without needing to be re-registered on every render.
