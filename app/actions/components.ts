@@ -9,7 +9,7 @@ export type ComponentType = "passive" | "active";
 
 export type FrequencyRange = {
   base_low: number;
-  base_high: number;
+  base_high: number | null;
   safe_low: number | null;
   safe_high: number | null;
 };
