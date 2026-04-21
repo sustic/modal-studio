@@ -109,7 +109,7 @@ export function WorkplaceClient({
 
   // Ref mirrors state so event-handler closures always see current values
   // without needing to be re-registered on every render.
-  const viewRef = useRef({ start: SCRUBBER_CONFIG.MIN_FREQ, end: SCRUBBER_CONFIG.MAX_FREQ });
+  const viewRef = useRef<{ start: number; end: number }>({ start: SCRUBBER_CONFIG.MIN_FREQ, end: SCRUBBER_CONFIG.MAX_FREQ });
 
   const [canvasWidth, setCanvasWidth] = useState(0);
 
