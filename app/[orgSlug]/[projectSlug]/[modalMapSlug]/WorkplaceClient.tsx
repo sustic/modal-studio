@@ -12,13 +12,15 @@ import { addComponentToModalMap, type ModalMapComponent } from "@/app/actions/co
 // ── Scrubber config — tune these values to adjust feel ────────────────────────
 
 const SCRUBBER_CONFIG = {
-  MIN_FREQ:         0,      // left boundary in Hz
-  MAX_FREQ:         6000,   // right boundary in Hz
-  MIN_RANGE:        2,      // maximum zoom in  (minimum visible Hz range)
-  MAX_RANGE:        6000,   // maximum zoom out (maximum visible Hz range)
-  ZOOM_SENSITIVITY: 0.001,  // lower = slower zoom, higher = faster
-  TICK_INTERVALS:   [2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.1],
-  TARGET_TICK_COUNT: 8,     // approximate number of ruler ticks to show
+  MIN_FREQ:          0,      // left boundary in Hz
+  MAX_FREQ:          6000,   // right boundary in Hz
+  DEFAULT_VIEW_START: 0,
+  DEFAULT_VIEW_END:   400,
+  MIN_RANGE:         2,      // maximum zoom in  (minimum visible Hz range)
+  MAX_RANGE:         6000,   // maximum zoom out (maximum visible Hz range)
+  ZOOM_SENSITIVITY:  0.001,  // lower = slower zoom, higher = faster
+  TICK_INTERVALS:    [2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.1],
+  TARGET_TICK_COUNT: 8,      // approximate number of ruler ticks to show
 } as const;
 
 // ── Pure frequency math ────────────────────────────────────────────────────────
@@ -148,12 +150,12 @@ export function WorkplaceClient({
   }
 
   // ── Frequency view state ───────────────────────────────────────────────────
-  const [viewStart, setViewStart] = useState<number>(SCRUBBER_CONFIG.MIN_FREQ);
-  const [viewEnd, setViewEnd]     = useState<number>(SCRUBBER_CONFIG.MAX_FREQ);
+  const [viewStart, setViewStart] = useState<number>(SCRUBBER_CONFIG.DEFAULT_VIEW_START);
+  const [viewEnd, setViewEnd]     = useState<number>(SCRUBBER_CONFIG.DEFAULT_VIEW_END);
 
   // Ref mirrors state so event-handler closures always see current values
   // without needing to be re-registered on every render.
-  const viewRef = useRef<{ start: number; end: number }>({ start: SCRUBBER_CONFIG.MIN_FREQ, end: SCRUBBER_CONFIG.MAX_FREQ });
+  const viewRef = useRef<{ start: number; end: number }>({ start: SCRUBBER_CONFIG.DEFAULT_VIEW_START, end: SCRUBBER_CONFIG.DEFAULT_VIEW_END });
 
   const [canvasWidth, setCanvasWidth] = useState(0);
 
