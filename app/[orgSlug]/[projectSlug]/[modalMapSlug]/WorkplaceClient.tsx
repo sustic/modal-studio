@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus } from "lucide-react";
+import { ChevronLeft, Plus, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { DetailsDrawer, type AddComponentData } from "./DetailsDrawer";
+import { addComponentToModalMap, type ModalMapComponent } from "@/app/actions/components";
 
 // ── Scrubber config — tune these values to adjust feel ────────────────────────
 
@@ -78,18 +80,15 @@ interface ModalMapData {
   name: string;
 }
 
-interface ComponentData {
-  id: string;
-  name: string;
-  description: string | null;
-}
+// Extends the server-returned type with an optional optimistic flag
+type ComponentRow = ModalMapComponent & { optimistic?: boolean };
 
 interface Props {
   orgSlug: string;
   projectSlug: string;
   projectName: string;
   modalMap: ModalMapData;
-  components: ComponentData[];
+  components: ModalMapComponent[];
 }
 
 // ── WorkplaceClient ────────────────────────────────────────────────────────────
@@ -99,9 +98,54 @@ export function WorkplaceClient({
   projectSlug,
   projectName,
   modalMap,
-  components,
+  components: initialComponents,
 }: Props) {
   const backHref = `/${orgSlug}/${projectSlug}`;
+
+  // ── Component list (mutable for optimistic updates) ───────────────────────
+  const [componentList, setComponentList] = useState<ComponentRow[]>(initialComponents);
+  const [drawerOpen, setDrawerOpen]       = useState(false);
+  const [errorMsg, setErrorMsg]           = useState<string | null>(null);
+
+  // ── Optimistic add ─────────────────────────────────────────────────────────
+  async function handleAdd(data: AddComponentData) {
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticRow: ComponentRow = {
+      id:                 optimisticId,
+      name:               data.name,
+      description:        data.description,
+      component_type:     data.componentType,
+      display_order:      componentList.length,
+      source_template_id: data.sourceTemplateId ?? null,
+      frequency_ranges:   data.frequencyRanges,
+      optimistic:         true,
+    };
+
+    setComponentList((prev) => [...prev, optimisticRow]);
+    setDrawerOpen(false);
+
+    const result = await addComponentToModalMap(orgSlug, projectSlug, {
+      modalMapId:       modalMap.id,
+      name:             data.name,
+      description:      data.description,
+      componentType:    data.componentType,
+      frequencyRanges:  data.frequencyRanges,
+      sourceTemplateId: data.sourceTemplateId,
+      displayOrder:     componentList.length,
+    });
+
+    if (result.success) {
+      // Replace the optimistic row with the confirmed server row
+      setComponentList((prev) =>
+        prev.map((c) => (c.id === optimisticId ? result.component : c))
+      );
+    } else {
+      // Roll back the optimistic row and surface the error
+      setComponentList((prev) => prev.filter((c) => c.id !== optimisticId));
+      setErrorMsg(result.error);
+      setTimeout(() => setErrorMsg(null), 4000);
+    }
+  }
 
   // ── Frequency view state ───────────────────────────────────────────────────
   const [viewStart, setViewStart] = useState<number>(SCRUBBER_CONFIG.MIN_FREQ);
@@ -356,7 +400,7 @@ export function WorkplaceClient({
       </header>
 
       {/* ── Modal Map View ───────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
 
         {/* Fixed column header row ─────────────────────────────────────── */}
         <div className="flex h-12 shrink-0 border-b bg-card">
@@ -367,6 +411,7 @@ export function WorkplaceClient({
               Components
             </span>
             <button
+              onClick={() => setDrawerOpen(true)}
               className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
               aria-label="Add component"
             >
@@ -429,34 +474,61 @@ export function WorkplaceClient({
         {/* Single overflow-y-auto div. Each row is full-width flex, so     */}
         {/* the component-name cell and canvas cell scroll as one unit.     */}
         <div className="flex-1 overflow-y-auto">
-          {components.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <p className="text-[13px] italic text-muted-foreground/50">
-                No components yet
-              </p>
-              <p className="mt-1 text-[12px] text-muted-foreground/35">
-                Use the + button above to add the first component.
-              </p>
-            </div>
-          ) : (
-            components.map((component) => (
-              <div
-                key={component.id}
-                className="flex h-12 border-b border-border/60 transition-colors last:border-b-0 hover:bg-accent/20"
-              >
-                {/* Component name cell — matches column header width */}
-                <div className="flex w-[280px] shrink-0 items-center border-r border-border/60 bg-card px-4">
-                  <span className="truncate text-[13px] text-foreground">
-                    {component.name}
-                  </span>
-                </div>
-
-                {/* Canvas cell — frequency data visualisation goes here */}
-                <div className="relative flex-1" />
+          {/* Component rows — always rendered (map produces nothing when empty) */}
+          {componentList.map((component) => (
+            <div
+              key={component.id}
+              className="flex h-12 border-b border-border/60 transition-colors last:border-b-0 hover:bg-accent/20"
+            >
+              {/* Component name cell */}
+              <div className="flex w-[280px] shrink-0 items-center gap-2 border-r border-border/60 bg-card px-4">
+                {component.optimistic && (
+                  <Loader2 size={11} className="shrink-0 animate-spin text-muted-foreground/40" />
+                )}
+                <span className={[
+                  "truncate text-[13px]",
+                  component.optimistic ? "text-muted-foreground/50" : "text-foreground",
+                ].join(" ")}>
+                  {component.name}
+                </span>
               </div>
-            ))
+
+              {/* Canvas cell — frequency visualisation goes here */}
+              <div className="relative flex-1" />
+            </div>
+          ))}
+
+          {/* Empty state — shown only in the canvas area when there are no components */}
+          {componentList.length === 0 && (
+            <div className="flex min-h-[200px]">
+              <div className="w-[280px] shrink-0 border-r border-border/60 bg-card" />
+              <div className="flex flex-1 flex-col items-center justify-center py-24 text-center">
+                <p className="text-[13px] italic text-muted-foreground/50">
+                  No components yet
+                </p>
+                <p className="mt-1 text-[12px] text-muted-foreground/35">
+                  Use the + button above to add the first component.
+                </p>
+              </div>
+            </div>
           )}
         </div>
+
+        {/* ── Details Drawer ─────────────────────────────────────────────── */}
+        <DetailsDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          onAdd={handleAdd}
+          orgSlug={orgSlug}
+          projectSlug={projectSlug}
+        />
+
+        {/* ── Error notification ─────────────────────────────────────────── */}
+        {errorMsg && (
+          <div className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-lg border border-destructive/20 bg-card px-4 py-2.5 text-[13px] text-destructive shadow-md">
+            {errorMsg}
+          </div>
+        )}
       </div>
     </div>
   );
