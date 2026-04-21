@@ -24,7 +24,7 @@ type ModalMap = {
   description: string | null;
   created_by: string | null;
   updated_at: string;
-  components: { count: number }[];
+  modal_map_components: { count: number }[];
 };
 
 function formatDate(iso: string) {
@@ -89,7 +89,7 @@ export default async function ProjectPage({ params }: Props) {
   // Fetch modal maps with component counts
   const { data: modalMaps } = await supabaseAdmin
     .from("modal_maps")
-    .select("id, name, slug, description, created_by, updated_at, components(count)")
+    .select("id, name, slug, description, created_by, updated_at, modal_map_components(count)")
     .eq("project_id", project.id)
     .order("updated_at", { ascending: false })
     .returns<ModalMap[]>();
@@ -138,8 +138,8 @@ export default async function ProjectPage({ params }: Props) {
                       <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.1" />
                       <circle cx="6" cy="6" r="1.5" fill="currentColor" />
                     </svg>
-                    {count(map.components)}{" "}
-                    {count(map.components) === 1 ? "component" : "components"}
+                    {count(map.modal_map_components)}{" "}
+                    {count(map.modal_map_components) === 1 ? "component" : "components"}
                   </div>
                 </CardContent>
 
