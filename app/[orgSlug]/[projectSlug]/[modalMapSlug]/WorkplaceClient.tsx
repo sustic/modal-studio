@@ -503,6 +503,18 @@ export function WorkplaceClient({
 
               {/* Canvas cell — frequency bars */}
               <div className="relative flex-1 overflow-hidden">
+                {/* Grid lines — one per ruler tick */}
+                {canvasWidth > 0 && ticks.map((f) => {
+                  const x = freqToX(f, viewStart, viewEnd, canvasWidth);
+                  if (x < 0 || x > canvasWidth) return null;
+                  return (
+                    <div
+                      key={f}
+                      className="absolute inset-y-0 w-px pointer-events-none"
+                      style={{ left: x, backgroundColor: "rgba(255,255,255,0.06)" }}
+                    />
+                  );
+                })}
                 {canvasWidth > 0 && (console.log('component:', component.name, 'ranges:', JSON.stringify(component.frequency_ranges)), true) && component.frequency_ranges.map((range, ri) => {
                   const x1 = freqToX(range.base_low, viewStart, viewEnd, canvasWidth);
 
