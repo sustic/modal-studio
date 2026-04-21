@@ -498,8 +498,8 @@ export function WorkplaceClient({
                         key={ri}
                         className="absolute rounded"
                         style={{
-                          left:            x1 - 2,
-                          width:           4,
+                          left:            x1 - 1.5,
+                          width:           3,
                           top:             "50%",
                           height:          "40%",
                           transform:       "translateY(-50%)",
