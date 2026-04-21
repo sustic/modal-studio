@@ -203,9 +203,12 @@ export function DetailsDrawer({ open, onClose, onAdd, orgSlug, projectSlug }: Pr
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
+    // Outer wrapper: always 380px wide, overflow:hidden clips the sliding inner panel
+    <div className="absolute inset-y-0 right-0 z-20 w-[380px] overflow-hidden">
+    {/* Inner panel: translateX within the fixed wrapper — true slide, cleanly clipped */}
     <div
-      className="absolute inset-y-0 z-20 flex w-[380px] flex-col border-l bg-card shadow-xl transition-[right] duration-300 ease-spring"
-      style={{ right: open ? 0 : -380 }}
+      className="absolute inset-y-0 right-0 flex w-[380px] flex-col border-l bg-card shadow-xl transition-transform duration-300 ease-spring"
+      style={{ transform: open ? "translateX(0)" : "translateX(100%)" }}
     >
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
@@ -430,6 +433,7 @@ export function DetailsDrawer({ open, onClose, onAdd, orgSlug, projectSlug }: Pr
           </Button>
         )}
       </div>
+    </div>
     </div>
   );
 }

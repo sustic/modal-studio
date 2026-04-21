@@ -493,8 +493,62 @@ export function WorkplaceClient({
                 </span>
               </div>
 
-              {/* Canvas cell — frequency visualisation goes here */}
-              <div className="relative flex-1" />
+              {/* Canvas cell — frequency bars */}
+              <div className="relative flex-1 overflow-hidden">
+                {canvasWidth > 0 && component.frequency_ranges.map((range, ri) => {
+                  const x1 = freqToX(range.base_low,  viewStart, viewEnd, canvasWidth);
+                  const x2 = freqToX(range.base_high, viewStart, viewEnd, canvasWidth);
+
+                  // Skip if base range is entirely outside the view
+                  if (x2 < 0 || x1 > canvasWidth) return null;
+
+                  const baseLeft  = Math.max(0, x1);
+                  const baseRight = Math.min(canvasWidth, x2);
+                  const baseWidth = baseRight - baseLeft;
+
+                  // Safe range (optional)
+                  let safeLeft = 0, safeWidth = 0, showSafe = false;
+                  if (range.safe_low != null && range.safe_high != null) {
+                    const sx1 = freqToX(range.safe_low,  viewStart, viewEnd, canvasWidth);
+                    const sx2 = freqToX(range.safe_high, viewStart, viewEnd, canvasWidth);
+                    if (sx2 >= 0 && sx1 <= canvasWidth) {
+                      safeLeft  = Math.max(0, sx1);
+                      safeWidth = Math.min(canvasWidth, sx2) - safeLeft;
+                      showSafe  = true;
+                    }
+                  }
+
+                  return (
+                    <React.Fragment key={ri}>
+                      {/* Safe range bar — full row height minus 8px padding, ~20% opacity */}
+                      {showSafe && (
+                        <div
+                          className="absolute rounded"
+                          style={{
+                            left:             safeLeft,
+                            width:            safeWidth,
+                            top:              8,
+                            bottom:           8,
+                            backgroundColor: "oklch(0.55 0.12 250 / 0.20)",
+                          }}
+                        />
+                      )}
+                      {/* Base range bar — 40% of row height, centred, ~70% opacity */}
+                      <div
+                        className="absolute rounded"
+                        style={{
+                          left:            baseLeft,
+                          width:           Math.max(2, baseWidth),
+                          top:             "50%",
+                          height:          "40%",
+                          transform:       "translateY(-50%)",
+                          backgroundColor: "oklch(0.55 0.12 250 / 0.70)",
+                        }}
+                      />
+                    </React.Fragment>
+                  );
+                })}
+              </div>
             </div>
           ))}
 
