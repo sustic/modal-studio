@@ -72,7 +72,8 @@ function getRulerTicks(viewStart: number, viewEnd: number): number[] {
 function formatFreq(f: number): string {
   // Round to avoid floating-point display artefacts (e.g. 99.99999)
   const rounded = parseFloat(f.toPrecision(10));
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  const base = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return `${base} Hz`;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
