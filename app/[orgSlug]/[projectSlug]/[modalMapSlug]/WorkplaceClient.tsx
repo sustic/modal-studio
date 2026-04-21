@@ -572,13 +572,14 @@ export function WorkplaceClient({
         </div>
 
         {/* ── Details Drawer ─────────────────────────────────────────────── */}
-        <DetailsDrawer
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          onAdd={handleAdd}
-          orgSlug={orgSlug}
-          projectSlug={projectSlug}
-        />
+        {drawerOpen && (
+          <DetailsDrawer
+            onClose={() => setDrawerOpen(false)}
+            onAdd={handleAdd}
+            orgSlug={orgSlug}
+            projectSlug={projectSlug}
+          />
+        )}
 
         {/* ── Error notification ─────────────────────────────────────────── */}
         {errorMsg && (
