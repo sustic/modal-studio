@@ -541,7 +541,7 @@ export function WorkplaceClient({
           ))}
 
           {componentList.length === 0 && (
-            <div className="flex min-h-[100vh]">
+            <div className="flex min-h-full">
               <div className="w-[280px] shrink-0 border-r border-border/60 bg-card" />
               <div className="flex flex-1 flex-col items-center justify-center py-24 text-center">
                 <p className="text-[13px] italic text-muted-foreground/50">No components yet</p>
