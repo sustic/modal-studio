@@ -33,7 +33,6 @@ export type AddComponentData = {
 };
 
 interface Props {
-  open: boolean;
   onClose: () => void;
   onAdd: (data: AddComponentData) => void;
   orgSlug: string;
@@ -90,7 +89,7 @@ function SegmentedControl({
 
 // ── DetailsDrawer ──────────────────────────────────────────────────────────────
 
-export function DetailsDrawer({ open, onClose, onAdd, orgSlug, projectSlug }: Props) {
+export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
   const [tab, setTab] = useState<Tab>("new");
 
   // ── New Component form ───────────────────────────────────────────────────
@@ -116,22 +115,6 @@ export function DetailsDrawer({ open, onClose, onAdd, orgSlug, projectSlug }: Pr
       });
     }
   }, [tab, templates, templatesLoading, orgSlug, projectSlug]);
-
-  // Reset form state after the drawer finishes sliding out
-  useEffect(() => {
-    if (open) return;
-    const t = setTimeout(() => {
-      setTab("new");
-      setName("");
-      setDescription("");
-      setComponentType("passive");
-      setRanges([makeRange()]);
-      setFormError(null);
-      setSearch("");
-      setSelectedId(null);
-    }, 200);
-    return () => clearTimeout(t);
-  }, [open]);
 
   // ── Range helpers ─────────────────────────────────────────────────────────
 
@@ -203,13 +186,7 @@ export function DetailsDrawer({ open, onClose, onAdd, orgSlug, projectSlug }: Pr
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    // Outer wrapper: always 380px wide, overflow:hidden clips the sliding inner panel
-    <div className="absolute inset-y-0 right-0 z-20 w-[380px] overflow-hidden">
-    {/* Inner panel: translateX within the fixed wrapper — true slide, cleanly clipped */}
-    <div
-      className="absolute inset-y-0 right-0 flex w-[380px] flex-col border-l bg-card shadow-xl transition-transform duration-300 ease-spring"
-      style={{ transform: open ? "translateX(0)" : "translateX(100%)" }}
-    >
+    <div className="absolute inset-y-0 right-0 z-20 flex w-[380px] flex-col border-l bg-card shadow-xl">
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
         <span className="text-[13px] font-semibold">Add Component</span>
@@ -433,7 +410,6 @@ export function DetailsDrawer({ open, onClose, onAdd, orgSlug, projectSlug }: Pr
           </Button>
         )}
       </div>
-    </div>
     </div>
   );
 }
