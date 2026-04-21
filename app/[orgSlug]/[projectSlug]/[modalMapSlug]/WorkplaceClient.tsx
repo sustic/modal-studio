@@ -540,22 +540,26 @@ export function WorkplaceClient({
                   // ── Range bar (base_high is set) ─────────────────────────
                   const x2 = freqToX(range.base_high, viewStart, viewEnd, canvasWidth);
 
-                  if (x2 < 0 || x1 > canvasWidth) return null;
+                  // Base bar visibility: hide only if entirely off-screen
+                  const baseVisible = !(x2 < 0 || x1 > canvasWidth);
+                  const baseLeft    = Math.max(0, x1);
+                  const baseRight   = Math.min(canvasWidth, x2);
+                  const baseWidth   = baseRight - baseLeft;
 
-                  const baseLeft  = Math.max(0, x1);
-                  const baseRight = Math.min(canvasWidth, x2);
-                  const baseWidth = baseRight - baseLeft;
-
+                  // Safe bar: independent visibility check
                   let safeLeft = 0, safeWidth = 0, showSafe = false;
                   if (range.safe_low != null && range.safe_high != null) {
                     const sx1 = freqToX(range.safe_low,  viewStart, viewEnd, canvasWidth);
                     const sx2 = freqToX(range.safe_high, viewStart, viewEnd, canvasWidth);
-                    if (sx2 >= 0 && sx1 <= canvasWidth) {
+                    if (sx1 < canvasWidth && sx2 > 0) {
                       safeLeft  = Math.max(0, sx1);
                       safeWidth = Math.min(canvasWidth, sx2) - safeLeft;
                       showSafe  = true;
                     }
                   }
+
+                  // Skip entire range only if both bars are off-screen
+                  if (!baseVisible && !showSafe) return null;
 
                   return (
                     <React.Fragment key={ri}>
@@ -571,17 +575,19 @@ export function WorkplaceClient({
                           }}
                         />
                       )}
-                      <div
-                        className="absolute rounded"
-                        style={{
-                          left:            baseLeft,
-                          width:           Math.max(2, baseWidth),
-                          top:             "50%",
-                          height:          "40%",
-                          transform:       "translateY(-50%)",
-                          backgroundColor: "oklch(0.55 0.12 250 / 0.70)",
-                        }}
-                      />
+                      {baseVisible && (
+                        <div
+                          className="absolute rounded"
+                          style={{
+                            left:            baseLeft,
+                            width:           Math.max(2, baseWidth),
+                            top:             "50%",
+                            height:          "40%",
+                            transform:       "translateY(-50%)",
+                            backgroundColor: "oklch(0.55 0.12 250 / 0.70)",
+                          }}
+                        />
+                      )}
                     </React.Fragment>
                   );
                 })}
