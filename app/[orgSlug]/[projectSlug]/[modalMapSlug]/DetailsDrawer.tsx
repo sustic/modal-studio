@@ -33,6 +33,7 @@ export type AddComponentData = {
 };
 
 interface Props {
+  open: boolean;
   onClose: () => void;
   onAdd: (data: AddComponentData) => void;
   orgSlug: string;
@@ -89,7 +90,7 @@ function SegmentedControl({
 
 // ── DetailsDrawer ──────────────────────────────────────────────────────────────
 
-export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
+export function DetailsDrawer({ open, onClose, onAdd, orgSlug, projectSlug }: Props) {
   const [tab, setTab] = useState<Tab>("new");
 
   // ── New Component form ───────────────────────────────────────────────────
@@ -186,7 +187,10 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="absolute inset-y-0 right-0 z-20 flex w-[380px] flex-col border-l bg-card shadow-xl">
+    <div
+      className="fixed inset-y-0 z-20 flex w-[380px] flex-col border-l bg-card shadow-xl transition-[right] duration-300 ease-spring"
+      style={{ right: open ? 0 : -380 }}
+    >
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
         <span className="text-[13px] font-semibold">Add Component</span>
