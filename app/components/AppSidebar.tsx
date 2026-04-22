@@ -93,12 +93,18 @@ function ProjectItem({
     pathname === projectUrl || pathname.startsWith(`${projectUrl}/`);
 
   const [open, setOpen] = React.useState(isProjectActive);
-  const [maps, setMaps] = React.useState<SidebarModalMap[] | null>(null);
+  const [maps, setMapsState] = React.useState<SidebarModalMap[] | null>(null);
+  const mapsRef = React.useRef<SidebarModalMap[] | null>(null);
   const [loading, setLoading] = React.useState(false);
+
+  function setMaps(m: SidebarModalMap[] | null) {
+    mapsRef.current = m;
+    setMapsState(m);
+  }
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
-    if (next && maps === null && !loading) {
+    if (next && mapsRef.current === null && !loading) {
       setLoading(true);
       getModalMapsForProject(orgSlug, project.slug).then((result) => {
         setMaps(result);
@@ -109,7 +115,7 @@ function ProjectItem({
 
   // Auto-load maps when the project is active on first render
   React.useEffect(() => {
-    if (isProjectActive && maps === null && !loading) {
+    if (isProjectActive && mapsRef.current === null && !loading) {
       setLoading(true);
       getModalMapsForProject(orgSlug, project.slug).then((result) => {
         setMaps(result);
@@ -119,6 +125,24 @@ function ProjectItem({
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Detect when the URL moves to a map slug not yet in our list (new modal map created)
+  React.useEffect(() => {
+    if (!isProjectActive || mapsRef.current === null) return;
+    const pathParts = pathname.split("/").filter(Boolean);
+    const urlMapSlug = pathParts[2]; // e.g. "my-map-slug"
+    if (
+      urlMapSlug &&
+      urlMapSlug !== "new" &&
+      !mapsRef.current.some((m) => (m.slug ?? m.id) === urlMapSlug)
+    ) {
+      // Silent background re-fetch — no loading skeleton
+      getModalMapsForProject(orgSlug, project.slug).then((result) => {
+        setMaps(result);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   return (
     <Collapsible.Root open={open} onOpenChange={handleOpenChange} asChild>
@@ -208,9 +232,16 @@ export function AppSidebar({
   const firstSegment = pathname.split("/")[1] ?? "";
   const orgSlug = NON_ORG_SEGMENTS.has(firstSegment) ? null : firstSegment;
 
-  const [projects, setProjects] = React.useState<SidebarProject[]>([]);
+  const [projects, setProjectsState] = React.useState<SidebarProject[]>([]);
+  const projectsRef = React.useRef<SidebarProject[]>([]);
   const [projectsLoading, setProjectsLoading] = React.useState(!!orgSlug);
 
+  function setProjects(p: SidebarProject[]) {
+    projectsRef.current = p;
+    setProjectsState(p);
+  }
+
+  // Initial load (and org switch)
   React.useEffect(() => {
     if (!orgSlug) {
       setProjects([]);
@@ -223,6 +254,25 @@ export function AppSidebar({
       setProjectsLoading(false);
     });
   }, [orgSlug]);
+
+  // Detect when the URL moves to a project slug not yet in our list (new project created)
+  React.useEffect(() => {
+    if (!orgSlug || projectsRef.current.length === 0) return;
+    const ORG_LEVEL_PAGES = new Set(["projects", "members", "settings"]);
+    const pathParts = pathname.split("/").filter(Boolean);
+    const urlProjectSlug = pathParts[1]; // segment right after orgSlug
+    if (
+      urlProjectSlug &&
+      !ORG_LEVEL_PAGES.has(urlProjectSlug) &&
+      !projectsRef.current.some((p) => p.slug === urlProjectSlug)
+    ) {
+      // Silent background re-fetch — no loading skeleton
+      getProjectsForOrg(orgSlug).then((result) => {
+        setProjects(result);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const hasMore = projects.length === 6;
   const visibleProjects = projects.slice(0, 5);

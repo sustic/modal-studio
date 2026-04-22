@@ -9,6 +9,14 @@ import { Button } from "@/components/ui/button";
 import { DetailsDrawer, type AddComponentData } from "./DetailsDrawer";
 import { addComponentToModalMap, type ModalMapComponent } from "@/app/actions/components";
 
+// ── Local types ───────────────────────────────────────────────────────────────
+
+type BarTooltip = {
+  x: number;
+  y: number;
+  range: { base_low: number; base_high: number | null; safe_low: number | null; safe_high: number | null };
+};
+
 // ── Scrubber config — tune these values to adjust feel ────────────────────────
 
 const SCRUBBER_CONFIG = {
@@ -168,7 +176,6 @@ export function WorkplaceClient({
   const [hoverX, setHoverX]           = useState<number | null>(null);
   const [crosshairOn, setCrosshairOn] = useState(false);
 
-  type BarTooltip = { x: number; y: number; range: FrequencyRange };
   const [barTooltip, setBarTooltip]   = useState<BarTooltip | null>(null);
 
   // The ruler div is the interaction surface for zoom/pan AND provides the
