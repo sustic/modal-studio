@@ -76,6 +76,12 @@ function formatFreq(f: number): string {
   return `${base} Hz`;
 }
 
+/** Format a number without the Hz suffix (used inside tooltip range strings). */
+function formatNum(n: number): string {
+  const rounded = parseFloat(n.toPrecision(10));
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface ModalMapData {
@@ -161,6 +167,9 @@ export function WorkplaceClient({
   const [canvasWidth, setCanvasWidth] = useState(0);
   const [hoverX, setHoverX]           = useState<number | null>(null);
   const [crosshairOn, setCrosshairOn] = useState(false);
+
+  type BarTooltip = { x: number; y: number; range: FrequencyRange };
+  const [barTooltip, setBarTooltip]   = useState<BarTooltip | null>(null);
 
   // The ruler div is the interaction surface for zoom/pan AND provides the
   // width used by freqToX. It sits in the fixed header row.
@@ -576,22 +585,32 @@ export function WorkplaceClient({
                 {canvasWidth > 0 && component.frequency_ranges.map((range, ri) => {
                   const x1 = freqToX(range.base_low, viewStart, viewEnd, canvasWidth);
 
+                  // ── Shared bar tooltip handlers ───────────────────────────
+                  const barEnter = (e: React.MouseEvent) =>
+                    setBarTooltip({ x: e.clientX, y: e.clientY, range });
+                  const barMove  = (e: React.MouseEvent) =>
+                    setBarTooltip((prev) => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+                  const barLeave = () => setBarTooltip(null);
+
                   // ── Point frequency (base_high is null) ──────────────────
                   if (range.base_high == null) {
                     if (x1 < 0 || x1 > canvasWidth) return null;
                     return (
-                      <div
-                        key={ri}
-                        className="absolute rounded"
-                        style={{
-                          left:            x1 - 1.5,
-                          width:           3,
-                          top:             "50%",
-                          height:          "40%",
-                          transform:       "translateY(-50%)",
-                          backgroundColor: "oklch(0.55 0.12 250 / 0.70)",
-                        }}
-                      />
+                      <div key={ri} className="absolute inset-y-0" style={{ left: x1 - 8, width: 16 }}
+                        onMouseEnter={barEnter} onMouseMove={barMove} onMouseLeave={barLeave}
+                      >
+                        <div
+                          className="absolute rounded"
+                          style={{
+                            left:            6.5,
+                            width:           3,
+                            top:             "50%",
+                            height:          "40%",
+                            transform:       "translateY(-50%)",
+                            backgroundColor: "oklch(0.55 0.12 250 / 0.70)",
+                          }}
+                        />
+                      </div>
                     );
                   }
 
@@ -615,6 +634,10 @@ export function WorkplaceClient({
                   }
 
                   if (!baseVisible && !showSafe) return null;
+
+                  // Hit area covers the widest visible extent of this range
+                  const hitLeft  = showSafe ? safeLeft  : baseLeft;
+                  const hitWidth = showSafe ? safeWidth : baseWidth;
 
                   return (
                     <React.Fragment key={ri}>
@@ -643,6 +666,14 @@ export function WorkplaceClient({
                           }}
                         />
                       )}
+                      {/* Transparent hit area — captures mouse events for the whole range */}
+                      <div
+                        className="absolute inset-y-0"
+                        style={{ left: hitLeft, width: Math.max(8, hitWidth) }}
+                        onMouseEnter={barEnter}
+                        onMouseMove={barMove}
+                        onMouseLeave={barLeave}
+                      />
                     </React.Fragment>
                   );
                 })}
@@ -672,6 +703,26 @@ export function WorkplaceClient({
             projectSlug={projectSlug}
           />
         )}
+
+        {/* ── Bar tooltip (fixed so it escapes overflow clipping) ──────── */}
+        {barTooltip && (() => {
+          const { x, y, range } = barTooltip;
+          const baseLine = range.base_high != null && range.base_high > 0
+            ? `Base: ${formatNum(range.base_low)} – ${formatNum(range.base_high)} Hz`
+            : `Base: ${formatNum(range.base_low)} Hz`;
+          const safeLine = range.safe_low != null && range.safe_high != null
+            ? `Safe: ${formatNum(range.safe_low)} – ${formatNum(range.safe_high)} Hz`
+            : null;
+          return (
+            <div
+              className="pointer-events-none fixed z-50 rounded-md bg-foreground/95 px-2.5 py-1.5 text-[11px] leading-snug text-background shadow-lg"
+              style={{ left: x + 12, top: y - (safeLine ? 52 : 36) }}
+            >
+              <div>{baseLine}</div>
+              {safeLine && <div className="mt-0.5 text-background/70">{safeLine}</div>}
+            </div>
+          );
+        })()}
 
         {/* ── Error notification ─────────────────────────────────────────── */}
         {errorMsg && (
