@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Loader2 } from "lucide-react";
+import { ChevronLeft, Plus, Loader2, Crosshair } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -159,6 +159,8 @@ export function WorkplaceClient({
   const viewRef = useRef<{ start: number; end: number }>({ start: SCRUBBER_CONFIG.DEFAULT_VIEW_START, end: SCRUBBER_CONFIG.DEFAULT_VIEW_END });
 
   const [canvasWidth, setCanvasWidth] = useState(0);
+  const [hoverX, setHoverX]           = useState<number | null>(null);
+  const [crosshairOn, setCrosshairOn] = useState(false);
 
   // The ruler div is the interaction surface for zoom/pan AND provides the
   // width used by freqToX. It sits in the fixed header row.
@@ -414,7 +416,23 @@ export function WorkplaceClient({
 
           <div className="flex-1" />
 
-          <Button variant="outline" size="sm">Edit</Button>
+          {/* ── Toolbar ───────────────────────────────────────────────── */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCrosshairOn((v) => !v)}
+              className={[
+                "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+                crosshairOn
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              ].join(" ")}
+              aria-label="Toggle crosshair"
+              title="Crosshair"
+            >
+              <Crosshair size={14} />
+            </button>
+            <Button variant="outline" size="sm">Edit</Button>
+          </div>
         </div>
       </header>
 
@@ -438,10 +456,16 @@ export function WorkplaceClient({
             </button>
           </div>
 
-          {/* Frequency ruler — interaction surface for zoom/pan */}
+          {/* Frequency ruler — also shows hover tooltip */}
           <div
             ref={rulerRef}
             className="relative flex-1 select-none overflow-hidden"
+            onMouseMove={(e) => {
+              if (!crosshairOn) return;
+              const rect = rulerRef.current!.getBoundingClientRect();
+              setHoverX(e.clientX - rect.left);
+            }}
+            onMouseLeave={() => setHoverX(null)}
           >
             {canvasWidth > 0 && ticks.map((f) => {
               const x = freqToX(f, viewStart, viewEnd, canvasWidth);
@@ -476,12 +500,44 @@ export function WorkplaceClient({
                 </React.Fragment>
               );
             })}
+
+            {/* Hover tooltip — pill that follows cursor horizontally */}
+            {hoverX !== null && canvasWidth > 0 && (() => {
+              const freq    = viewStart + (hoverX / canvasWidth) * (viewEnd - viewStart);
+              const PILL_W  = 72;
+              const pinned  = Math.max(PILL_W / 2, Math.min(canvasWidth - PILL_W / 2, hoverX));
+              return (
+                <div
+                  className="pointer-events-none absolute top-1.5 z-20 -translate-x-1/2 rounded-full bg-foreground/90 px-2 py-0.5 text-[10px] tabular-nums text-background"
+                  style={{ left: pinned }}
+                >
+                  {formatFreq(freq)}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
         {/* ── Single scroll container ───────────────────────────────────── */}
         {/* Full-width rows, each with a 280px left cell + flex-1 right cell */}
-        <div ref={canvasRowsRef} className="flex-1 overflow-y-auto">
+        <div
+          ref={canvasRowsRef}
+          className="relative flex-1 overflow-y-auto"
+          onMouseMove={(e) => {
+            if (!crosshairOn) return;
+            const rect = rulerRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            setHoverX(e.clientX - rect.left);
+          }}
+          onMouseLeave={() => setHoverX(null)}
+        >
+          {/* Hairline — fixed at cursor X, spans full scroll height */}
+          {hoverX !== null && (
+            <div
+              className="pointer-events-none absolute inset-y-0 z-10 w-px"
+              style={{ left: 280 + hoverX, backgroundColor: "rgba(255,255,255,0.18)" }}
+            />
+          )}
 
           {componentList.map((component) => (
             <div
@@ -501,7 +557,7 @@ export function WorkplaceClient({
                 </span>
               </div>
 
-              {/* Canvas cell — frequency bars */}
+              {/* Canvas cell — frequency bars + grid lines */}
               <div className="relative flex-1 overflow-hidden">
                 {/* Grid lines — one per ruler tick */}
                 {canvasWidth > 0 && ticks.map((f) => {
@@ -515,7 +571,9 @@ export function WorkplaceClient({
                     />
                   );
                 })}
-                {canvasWidth > 0 && (console.log('component:', component.name, 'ranges:', JSON.stringify(component.frequency_ranges)), true) && component.frequency_ranges.map((range, ri) => {
+
+                {/* Frequency bars */}
+                {canvasWidth > 0 && component.frequency_ranges.map((range, ri) => {
                   const x1 = freqToX(range.base_low, viewStart, viewEnd, canvasWidth);
 
                   // ── Point frequency (base_high is null) ──────────────────
@@ -540,13 +598,11 @@ export function WorkplaceClient({
                   // ── Range bar (base_high is set) ─────────────────────────
                   const x2 = freqToX(range.base_high, viewStart, viewEnd, canvasWidth);
 
-                  // Base bar visibility: hide only if entirely off-screen
                   const baseVisible = !(x2 < 0 || x1 > canvasWidth);
                   const baseLeft    = Math.max(0, x1);
                   const baseRight   = Math.min(canvasWidth, x2);
                   const baseWidth   = baseRight - baseLeft;
 
-                  // Safe bar: independent visibility check
                   let safeLeft = 0, safeWidth = 0, showSafe = false;
                   if (range.safe_low != null && range.safe_high != null) {
                     const sx1 = freqToX(range.safe_low,  viewStart, viewEnd, canvasWidth);
@@ -558,7 +614,6 @@ export function WorkplaceClient({
                     }
                   }
 
-                  // Skip entire range only if both bars are off-screen
                   if (!baseVisible && !showSafe) return null;
 
                   return (
