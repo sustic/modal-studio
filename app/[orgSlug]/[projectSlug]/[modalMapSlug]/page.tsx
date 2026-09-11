@@ -55,6 +55,7 @@ export default async function ModalMapPage({ params }: Props) {
       "id, name, description, component_type, display_order, source_template_id, modal_map_component_frequency_ranges(base_low, base_high, safe_low, safe_high)"
     )
     .eq("modal_map_id", modalMap.id)
+    .is("deleted_at", null)
     .order("display_order", { ascending: true })
     .order("created_at",    { ascending: true });
 

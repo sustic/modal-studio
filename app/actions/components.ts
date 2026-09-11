@@ -151,6 +151,43 @@ export async function addComponentToModalMap(
   };
 }
 
+// ── deleteComponent ────────────────────────────────────────────────────────────
+
+export async function deleteComponent(
+  orgSlug: string,
+  projectSlug: string,
+  componentId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const { userId } = await auth();
+  if (!userId) return { success: false, error: "Not authenticated." };
+
+  const { data: org } = await supabaseAdmin
+    .from("organisations")
+    .select("id")
+    .eq("slug", orgSlug)
+    .single();
+  if (!org) return { success: false, error: "Organisation not found." };
+
+  const { data: membership } = await supabaseAdmin
+    .from("organisation_members")
+    .select("role")
+    .eq("organisation_id", org.id)
+    .eq("clerk_user_id", userId)
+    .single();
+  if (!membership || !["owner", "editor"].includes(membership.role)) {
+    return { success: false, error: "You don't have permission to delete components." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("modal_map_components")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", componentId)
+    .eq("organisation_id", org.id);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 // ── getProjectTemplates ────────────────────────────────────────────────────────
 
 export async function getProjectTemplates(

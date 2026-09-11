@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { DetailsDrawer, type AddComponentData } from "./DetailsDrawer";
-import { addComponentToModalMap, type ModalMapComponent } from "@/app/actions/components";
+import { addComponentToModalMap, deleteComponent, type ModalMapComponent } from "@/app/actions/components";
 
 // ── Local types ───────────────────────────────────────────────────────────────
 
@@ -120,9 +120,10 @@ export function WorkplaceClient({
   const backHref = `/${orgSlug}/${projectSlug}`;
 
   // ── Component list (mutable for optimistic updates) ───────────────────────
-  const [componentList, setComponentList] = useState<ComponentRow[]>(initialComponents);
-  const [drawerOpen, setDrawerOpen]       = useState(false);
-  const [errorMsg, setErrorMsg]           = useState<string | null>(null);
+  const [componentList, setComponentList]     = useState<ComponentRow[]>(initialComponents);
+  const [drawerOpen, setDrawerOpen]           = useState(false);
+  const [editingComponent, setEditingComponent] = useState<ModalMapComponent | null>(null);
+  const [errorMsg, setErrorMsg]               = useState<string | null>(null);
 
   // ── Optimistic add ─────────────────────────────────────────────────────────
   async function handleAdd(data: AddComponentData) {
@@ -159,6 +160,24 @@ export function WorkplaceClient({
     } else {
       // Roll back the optimistic row and surface the error
       setComponentList((prev) => prev.filter((c) => c.id !== optimisticId));
+      setErrorMsg(result.error);
+      setTimeout(() => setErrorMsg(null), 4000);
+    }
+  }
+
+  // ── Optimistic delete ──────────────────────────────────────────────────────
+  async function handleDelete(componentId: string) {
+    const saved = componentList.find((c) => c.id === componentId);
+    if (!saved) return;
+
+    setComponentList((prev) => prev.filter((c) => c.id !== componentId));
+    setDrawerOpen(false);
+    setEditingComponent(null);
+
+    const result = await deleteComponent(orgSlug, projectSlug, componentId);
+
+    if (!result.success) {
+      setComponentList((prev) => [...prev, saved]);
       setErrorMsg(result.error);
       setTimeout(() => setErrorMsg(null), 4000);
     }
@@ -565,12 +584,21 @@ export function WorkplaceClient({
                 {component.optimistic && (
                   <Loader2 size={11} className="shrink-0 animate-spin text-muted-foreground/40" />
                 )}
-                <span className={[
-                  "truncate text-[13px]",
-                  component.optimistic ? "text-muted-foreground/50" : "text-foreground",
-                ].join(" ")}>
+                <button
+                  disabled={!!component.optimistic}
+                  onClick={() => {
+                    setEditingComponent(component);
+                    setDrawerOpen(true);
+                  }}
+                  className={[
+                    "truncate text-left text-[13px]",
+                    component.optimistic
+                      ? "pointer-events-none text-muted-foreground/50"
+                      : "text-foreground hover:underline",
+                  ].join(" ")}
+                >
                   {component.name}
-                </span>
+                </button>
               </div>
 
               {/* Canvas cell — frequency bars + grid lines */}
@@ -704,10 +732,12 @@ export function WorkplaceClient({
         {/* ── Details Drawer ─────────────────────────────────────────────── */}
         {drawerOpen && (
           <DetailsDrawer
-            onClose={() => setDrawerOpen(false)}
+            onClose={() => { setDrawerOpen(false); setEditingComponent(null); }}
             onAdd={handleAdd}
+            onDelete={handleDelete}
             orgSlug={orgSlug}
             projectSlug={projectSlug}
+            editingComponent={editingComponent}
           />
         )}
 

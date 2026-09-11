@@ -7,6 +7,7 @@ import {
   getProjectTemplates,
   type ComponentType,
   type FrequencyRange,
+  type ModalMapComponent,
   type ProjectTemplate,
 } from "@/app/actions/components";
 
@@ -47,8 +48,10 @@ export type AddComponentData = {
 interface Props {
   onClose: () => void;
   onAdd: (data: AddComponentData) => void;
+  onDelete: (componentId: string) => void;
   orgSlug: string;
   projectSlug: string;
+  editingComponent: ModalMapComponent | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -193,7 +196,7 @@ function hasErrors(errors: FormErrors): boolean {
 
 // ── DetailsDrawer ──────────────────────────────────────────────────────────────
 
-export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
+export function DetailsDrawer({ onClose, onAdd, onDelete, orgSlug, projectSlug, editingComponent }: Props) {
   const [closing, setClosing] = useState(false);
 
   function dismiss() {
@@ -202,12 +205,24 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
   }
 
   const [tab, setTab] = useState<Tab>("new");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // ── New Component form ───────────────────────────────────────────────────
-  const [name, setName]               = useState("");
-  const [description, setDescription] = useState("");
-  const [componentType, setComponentType] = useState<ComponentType>("passive");
-  const [ranges, setRanges]           = useState<RangeField[]>([makeRange()]);
+  const [name, setName]               = useState(editingComponent?.name ?? "");
+  const [description, setDescription] = useState(editingComponent?.description ?? "");
+  const [componentType, setComponentType] = useState<ComponentType>(editingComponent?.component_type ?? "passive");
+  const [ranges, setRanges]           = useState<RangeField[]>(() => {
+    if (editingComponent && editingComponent.frequency_ranges.length > 0) {
+      return editingComponent.frequency_ranges.map((r) => ({
+        id:        Math.random().toString(36).slice(2),
+        base_low:  String(r.base_low),
+        base_high: r.base_high != null ? String(r.base_high) : "",
+        safe_low:  r.safe_low  != null ? String(r.safe_low)  : "",
+        safe_high: r.safe_high != null ? String(r.safe_high) : "",
+      }));
+    }
+    return [makeRange()];
+  });
   const [submitted, setSubmitted]     = useState(false);
   const [errors, setErrors]           = useState<FormErrors>({ ranges: [] });
 
@@ -238,6 +253,7 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
 
   function handleSubmitNew(e: React.FormEvent) {
     e.preventDefault();
+    if (editingComponent) return;
     setSubmitted(true);
 
     const errs = validate(name, ranges);
@@ -304,7 +320,9 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
     >
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-        <span className="text-[13px] font-semibold">Add Component</span>
+        <span className="text-[13px] font-semibold">
+          {editingComponent ? editingComponent.name : "Add Component"}
+        </span>
         <button
           onClick={dismiss}
           className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
@@ -314,29 +332,31 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex shrink-0 border-b">
-        {(["new", "template"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={[
-              "flex-1 px-4 py-2.5 text-[12px] font-medium transition-colors",
-              tab === t
-                ? "border-b-2 border-foreground text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            ].join(" ")}
-          >
-            {t === "new" ? "New Component" : "From Template"}
-          </button>
-        ))}
-      </div>
+      {/* Tabs — hidden in edit mode */}
+      {!editingComponent && (
+        <div className="flex shrink-0 border-b">
+          {(["new", "template"] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={[
+                "flex-1 px-4 py-2.5 text-[12px] font-medium transition-colors",
+                tab === t
+                  ? "border-b-2 border-foreground text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              ].join(" ")}
+            >
+              {t === "new" ? "New Component" : "From Template"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto">
 
-        {/* ── New Component ────────────────────────────────────────────── */}
-        {tab === "new" && (
+        {/* ── New Component / Edit Component ───────────────────────────── */}
+        {(editingComponent || tab === "new") && (
           <form id="new-component-form" onSubmit={handleSubmitNew} className="flex flex-col gap-5 p-4">
 
             {/* Name */}
@@ -506,7 +526,49 @@ export function DetailsDrawer({ onClose, onAdd, orgSlug, projectSlug }: Props) {
 
       {/* Sticky footer */}
       <div className="shrink-0 border-t p-4">
-        {tab === "new" ? (
+        {editingComponent ? (
+          confirmingDelete ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-center text-[12px] text-muted-foreground">
+                Delete{" "}
+                <span className="font-semibold text-foreground">{editingComponent.name}</span>?{" "}
+                This action cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => onDelete(editingComponent.id)}
+                >
+                  Confirm Delete
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="flex-1"
+                onClick={() => setConfirmingDelete(true)}
+              >
+                Delete
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1">
+                Save Changes
+              </Button>
+            </div>
+          )
+        ) : tab === "new" ? (
           <Button
             type="submit"
             form="new-component-form"
